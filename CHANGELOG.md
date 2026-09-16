@@ -5,6 +5,24 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.5]
+
+### Added / 新增
+
+**Bilingual interface / 界面双语化**
+
+- The plugin interface (settings tab, import modal, ribbon tooltip, command name and all notifications) now follows the Obsidian interface language: Chinese for `zh*` locales, English otherwise.
+  插件界面（设置页、导入弹窗、侧边栏提示、命令名与全部通知）现在**跟随 Obsidian 界面语言**：`zh*` 环境显示中文，其余显示英文。
+- Language detection reads Obsidian's stored language, then falls back to the moment locale, then defaults to Chinese.
+  语言检测依次读取 Obsidian 存储的语言、moment 的 locale，最后回退中文。
+
+### Changed / 变更
+
+- All previously hard-coded English UI strings were moved into a single i18n table in `main.js` for easier maintenance and future translations.
+  原先硬编码的英文界面文案已集中到 `main.js` 的 i18n 表中，便于维护与后续扩展语种。
+
+---
+
 ## [1.0.4]
 
 ### Added / 新增

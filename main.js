@@ -140,6 +140,103 @@ function sanitizeFilenamePreserveEmoji(text) {
   return Array.from(sanitized).slice(0, 50).join("");
 }
 
+// [本地增强] 轻量国际化：跟随 Obsidian 界面语言，中文环境用中文，其余回退英文
+function detectLangIsZh() {
+  try {
+    const stored = window.localStorage?.getItem("language") || "";
+    if (stored) {
+      return /^zh/i.test(stored);
+    }
+    const momentLocale = window.moment?.locale?.() || "";
+    if (momentLocale) {
+      return /^zh/i.test(momentLocale);
+    }
+  } catch (_error) {
+    // 读不到就按中文处理（本插件的主要使用环境）
+  }
+  return true;
+}
+
+const IS_ZH = detectLangIsZh();
+
+const I18N = {
+  zh: {
+    noticeNoUrl: "没在文本里找到有效的小红书链接。",
+    noticeImported: (path) => `已导入小红书笔记：${path}`,
+    noticeImportFailed: (msg) => `导入失败：${msg}`,
+    noticeNoNoteData: "小红书没有返回笔记数据。可能是分享链接已过期，或页面结构有变化。",
+    noticeMediaFailed: (msg) => `图片下载失败：${msg}`,
+    noticeNoVideoUrl: "没找到视频直链，只导入了封面图。",
+    modalTitle: "导入小红书笔记",
+    modalPasteLabel: "粘贴分享文本或链接：",
+    modalPlaceholder: "例如：64 不叫小黄了发布了一篇小红书笔记……",
+    modalDownloadLabel: "本次导入同时下载图片到本地",
+    modalImportButton: "导入",
+    setNoteFolderName: "笔记保存目录",
+    setNoteFolderDesc: "导入的笔记默认保存到这个目录。",
+    setImageFolderName: "图片保存目录",
+    setImageFolderDesc: "下载的图片默认保存到这个目录。",
+    setDownloadName: "下载图片",
+    setDownloadDesc: "开启后，笔记图片会下载到本地库。视频仍保留远程链接。",
+    setFrontmatterHeading: "Frontmatter 字段",
+    setPlaceholdersHint: "可用占位符：",
+    setFieldName: (n) => `字段 ${n}`,
+    setFieldDesc: "可编辑字段名、启用状态与排序。",
+    setFieldKeyPlaceholder: "字段名",
+    setEnableFieldTooltip: "启用此字段",
+    setMoveUpTooltip: "上移",
+    setMoveDownTooltip: "下移",
+    setRemoveButton: "删除",
+    setValueLabel: "默认值（YAML 原始写法，支持多行）",
+    setAddFieldButton: "添加字段",
+    ribbonTooltip: "导入小红书笔记",
+    commandName: "导入小红书笔记",
+  },
+  en: {
+    noticeNoUrl: "No valid Xiaohongshu URL found in the text.",
+    noticeImported: (path) => `Imported Xiaohongshu note as ${path}`,
+    noticeImportFailed: (msg) => `Failed to import note: ${msg}`,
+    noticeNoNoteData:
+      "Xiaohongshu returned no note data. The share link may have expired or the page format may have changed.",
+    noticeMediaFailed: (msg) => `Failed to download media: ${msg}`,
+    noticeNoVideoUrl: "Video URL not found; imported note with cover image only.",
+    modalTitle: "Import Xiaohongshu note",
+    modalPasteLabel: "Paste the share text below:",
+    modalPlaceholder: "e.g., 64 不叫小黄了发布了一篇小红书笔记...",
+    modalDownloadLabel: "Download images locally for this import",
+    modalImportButton: "Import",
+    setNoteFolderName: "Default note folder",
+    setNoteFolderDesc: "Imported notes will use this folder by default.",
+    setImageFolderName: "Default image folder",
+    setImageFolderDesc: "Downloaded images will use this folder by default.",
+    setDownloadName: "Download images",
+    setDownloadDesc:
+      "If enabled, note images are downloaded to the local vault. Videos remain remote links.",
+    setFrontmatterHeading: "Frontmatter Fields",
+    setPlaceholdersHint: "Supported placeholders:",
+    setFieldName: (n) => `Field ${n}`,
+    setFieldDesc: "Edit the field key, enable state, and order.",
+    setFieldKeyPlaceholder: "Field key",
+    setEnableFieldTooltip: "Enable field",
+    setMoveUpTooltip: "Move up",
+    setMoveDownTooltip: "Move down",
+    setRemoveButton: "Remove",
+    setValueLabel: "Default value (raw YAML value, multiline supported)",
+    setAddFieldButton: "Add field",
+    ribbonTooltip: "Import Xiaohongshu note",
+    commandName: "Import Xiaohongshu note",
+  },
+};
+
+const t = (key, ...args) => {
+  const table = IS_ZH ? I18N.zh : I18N.en;
+  const value = Object.prototype.hasOwnProperty.call(table, key) ? table[key] : I18N.en[key];
+  if (typeof value === "function") {
+    return value(...args);
+  }
+  return value !== undefined ? value : key;
+};
+
 function createFieldId() {
   return `field-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
@@ -223,7 +320,7 @@ class XiaohongshuImporterPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
 
-    this.addRibbonIcon("book", "Import Xiaohongshu note", async () => {
+    this.addRibbonIcon("book", t("ribbonTooltip"), async () => {
       const result = await this.promptForShareText();
       if (!result || !result.text) {
         return;
@@ -231,7 +328,7 @@ class XiaohongshuImporterPlugin extends Plugin {
 
       const url = this.extractURL(result.text);
       if (!url) {
-        new Notice("No valid Xiaohongshu URL found in the text.");
+        new Notice(t("noticeNoUrl"));
         return;
       }
 
@@ -240,7 +337,7 @@ class XiaohongshuImporterPlugin extends Plugin {
 
     this.addCommand({
       id: "import",
-      name: "Import Xiaohongshu note",
+      name: t("commandName"),
       callback: async () => {
         const result = await this.promptForShareText();
         if (!result || !result.text) {
@@ -249,7 +346,7 @@ class XiaohongshuImporterPlugin extends Plugin {
 
         const url = this.extractURL(result.text);
         if (!url) {
-          new Notice("No valid Xiaohongshu URL found in the text.");
+          new Notice(t("noticeNoUrl"));
           return;
         }
 
@@ -430,7 +527,7 @@ class XiaohongshuImporterPlugin extends Plugin {
       return targetPath;
     } catch (error) {
       console.log(`Failed to download media from ${url}: ${error.message}`);
-      new Notice(`Failed to download media: ${error.message}`);
+      new Notice(t("noticeMediaFailed", error.message));
       return url;
     }
   }
@@ -516,9 +613,7 @@ class XiaohongshuImporterPlugin extends Plugin {
       ).text;
       const note = this.getNoteDetail(html);
       if (!note) {
-        throw new Error(
-          "Xiaohongshu returned no note data. The share link may have expired or the page format may have changed.",
-        );
+        throw new Error(t("noticeNoNoteData"));
       }
 
       const title = this.extractTitle(html, note);
@@ -566,7 +661,7 @@ class XiaohongshuImporterPlugin extends Plugin {
         if (videoUrl) {
           markdown += `[Video Link](${videoUrl})\n\n`;
         } else {
-          new Notice("Video URL not found; imported note with cover image only.");
+          new Notice(t("noticeNoVideoUrl"));
         }
 
         const cleanedContent = content.replace(/#\S+/g, "").trim();
@@ -618,10 +713,10 @@ class XiaohongshuImporterPlugin extends Plugin {
       const createdFile = await this.app.vault.create(notePath, markdown);
       await this.app.workspace.getLeaf(true).openFile(createdFile);
       await this.saveSettings();
-      new Notice(`Imported Xiaohongshu note as ${notePath}`);
+      new Notice(t("noticeImported", notePath));
     } catch (error) {
       console.log(`Failed to import note from ${url}: ${error.message}`);
-      new Notice(`Failed to import note: ${error.message}`);
+      new Notice(t("noticeImportFailed", error.message));
     }
   }
 
@@ -773,8 +868,8 @@ class XiaohongshuSettingTab extends PluginSettingTab {
     });
 
     new Setting(containerEl)
-      .setName("Default note folder")
-      .setDesc("Imported notes will use this folder by default.")
+      .setName(t("setNoteFolderName"))
+      .setDesc(t("setNoteFolderDesc"))
       .addText((text) =>
         text.setPlaceholder("00.收集箱").setValue(this.plugin.settings.noteFolder).onChange(async (value) => {
           this.plugin.settings.noteFolder = value.trim();
@@ -783,8 +878,8 @@ class XiaohongshuSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Default image folder")
-      .setDesc("Downloaded images will use this folder by default.")
+      .setName(t("setImageFolderName"))
+      .setDesc(t("setImageFolderDesc"))
       .addText((text) =>
         text.setPlaceholder("附件/XHS").setValue(this.plugin.settings.imageFolder).onChange(async (value) => {
           this.plugin.settings.imageFolder = value.trim();
@@ -793,8 +888,8 @@ class XiaohongshuSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Download images")
-      .setDesc("If enabled, note images are downloaded to the local vault. Videos remain remote links.")
+      .setName(t("setDownloadName"))
+      .setDesc(t("setDownloadDesc"))
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.downloadMedia).onChange(async (value) => {
           this.plugin.settings.downloadMedia = value;
@@ -802,10 +897,11 @@ class XiaohongshuSettingTab extends PluginSettingTab {
         }),
       );
 
-    containerEl.createEl("h3", { text: "Frontmatter Fields" });
+    containerEl.createEl("h3", { text: t("setFrontmatterHeading") });
     containerEl.createEl("p", {
       text:
-        "Supported placeholders: {{date}}, {{title}}, {{source}}, {{videoUrl}}, {{noteId}}, " +
+        t("setPlaceholdersHint") +
+        " {{date}}, {{title}}, {{source}}, {{videoUrl}}, {{noteId}}, " +
         "{{author}}, {{authorId}}, {{publishDate}}, {{ipLocation}}, {{noteType}}, " +
         "{{likedCount}}, {{collectedCount}}, {{commentCount}}, {{shareCount}}, {{noteTags}}.",
       cls: "xhs-frontmatter-hint",
@@ -816,43 +912,43 @@ class XiaohongshuSettingTab extends PluginSettingTab {
       const fieldContainer = containerEl.createDiv({ cls: "xhs-field-setting" });
 
       new Setting(fieldContainer)
-        .setName(`Field ${index + 1}`)
-        .setDesc("Edit the field key, enable state, and order.")
+        .setName(t("setFieldName", index + 1))
+        .setDesc(t("setFieldDesc"))
         .addText((text) =>
-          text.setPlaceholder("Field key").setValue(field.key).onChange(async (value) => {
+          text.setPlaceholder(t("setFieldKeyPlaceholder")).setValue(field.key).onChange(async (value) => {
             this.plugin.settings.frontmatterFields[index].key = value.trim();
             await this.plugin.saveSettings();
           }),
         )
         .addToggle((toggle) =>
-          toggle.setTooltip("Enable field").setValue(field.enabled).onChange(async (value) => {
+          toggle.setTooltip(t("setEnableFieldTooltip")).setValue(field.enabled).onChange(async (value) => {
             this.plugin.settings.frontmatterFields[index].enabled = value;
             await this.plugin.saveSettings();
           }),
         )
         .addButton((button) =>
-          button.setIcon("arrow-up").setTooltip("Move up").setDisabled(index === 0).onClick(async () => {
+          button.setIcon("arrow-up").setTooltip(t("setMoveUpTooltip")).setDisabled(index === 0).onClick(async () => {
             await this.moveField(index, -1);
           }),
         )
         .addButton((button) =>
           button
             .setIcon("arrow-down")
-            .setTooltip("Move down")
+            .setTooltip(t("setMoveDownTooltip"))
             .setDisabled(index === fields.length - 1)
             .onClick(async () => {
               await this.moveField(index, 1);
             }),
         )
         .addButton((button) =>
-          button.setButtonText("Remove").setWarning().onClick(async () => {
+          button.setButtonText(t("setRemoveButton")).setWarning().onClick(async () => {
             await this.deleteField(index);
           }),
         );
 
       const valueWrapper = fieldContainer.createDiv({ cls: "xhs-field-value-wrapper" });
       valueWrapper.createEl("label", {
-        text: "Default value (raw YAML value, multiline supported)",
+        text: t("setValueLabel"),
         cls: "xhs-field-value-label",
       });
 
@@ -866,7 +962,7 @@ class XiaohongshuSettingTab extends PluginSettingTab {
     });
 
     new Setting(containerEl).addButton((button) =>
-      button.setButtonText("Add field").onClick(async () => {
+      button.setButtonText(t("setAddFieldButton")).onClick(async () => {
         this.plugin.settings.frontmatterFields.push({
           id: createFieldId(),
           key: "newField",
@@ -894,14 +990,14 @@ class XiaohongshuImportModal extends Modal {
     const { contentEl } = this;
 
     contentEl.addClass("xhs-modal-content");
-    contentEl.createEl("h2", { text: "Import Xiaohongshu note" });
+    contentEl.createEl("h2", { text: t("modalTitle") });
 
     const textRow = contentEl.createEl("div", { cls: "xhs-modal-row" });
-    textRow.createEl("p", { text: "Paste the share text below:" });
+    textRow.createEl("p", { text: t("modalPasteLabel") });
     const textarea = textRow.createEl("textarea", {
       cls: "xhs-modal-textarea",
       attr: {
-        placeholder: "e.g., 64 不叫小黄了发布了一篇小红书笔记...",
+        placeholder: t("modalPlaceholder"),
       },
     });
 
@@ -919,14 +1015,14 @@ class XiaohongshuImportModal extends Modal {
     });
 
     toggleWrapper.createEl("label", {
-      text: "Download images locally for this import",
+      text: t("modalDownloadLabel"),
       cls: "xhs-download-label",
       attr: { for: checkboxId },
     });
 
     contentEl
       .createEl("div", { cls: ["xhs-modal-row", "xhs-button-row"] })
-      .createEl("button", { text: "Import", cls: "xhs-submit-button" })
+      .createEl("button", { text: t("modalImportButton"), cls: "xhs-submit-button" })
       .addEventListener("click", () => {
         this.result = {
           text: textarea.value.trim(),

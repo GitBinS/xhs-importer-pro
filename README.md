@@ -18,6 +18,7 @@ Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown 
 | **Configurable folders** | Separate configurable destinations for notes and images. |
 | **Configurable frontmatter** | Add, remove, reorder, enable or disable fields; values support placeholders. |
 | **Emoji-safe filenames** | Filenames keep Chinese characters, emoji and punctuation without dropping or corrupting them. |
+| **Bilingual interface** | The UI follows your Obsidian interface language — Chinese for `zh*` locales, English otherwise. |
 | **Video notes** | Video notes keep a remote direct link plus cover image. |
 
 ### Placeholders
