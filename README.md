@@ -1,26 +1,26 @@
 # Xiaohongshu Importer Pro
 
-Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown — including the full body text, all images, hashtags, author info, and engagement metrics.
+**English** | [中文](./README.zh-CN.md)
 
-把小红书笔记导入你的 Obsidian 知识库：正文、全部图片、话题标签、作者信息，以及**点赞 / 收藏 / 评论 / 分享**数据。
+Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown — including the full body text, all images, hashtags, author info, and engagement metrics.
 
 ---
 
-## Features / 功能
+## Features
 
-| Feature | 说明 |
+| Feature | Description |
 |---|---|
-| **Import from share link** | 粘贴小红书分享文本或链接即可导入（支持 `xhslink.com` 短链与 App / 网页分享链接） |
-| **Full body text** | 完整正文，自动剥离话题标签并单独整理 |
-| **All images downloaded** | 图片全部下载到本地 vault，离线可看、原帖删除也不丢 |
-| **Engagement metrics** | 点赞数 / 收藏数 / 评论数 / 分享数，写入 frontmatter，便于筛选爆款 |
-| **Publish date & author** | 笔记真实发布时间、作者昵称与主页 ID |
-| **Configurable folders** | 笔记落点目录、图片落点目录均可配置 |
-| **Configurable frontmatter** | 字段可增删、排序、启停，值支持占位符 |
-| **Emoji-safe filenames** | 文件名保留中文、emoji 与标点，不会丢字或截断坏字符 |
-| **Video notes** | 视频笔记保留远程直链 + 封面图 |
+| **Import from share link** | Paste a Xiaohongshu share text or link to import a note. Supports `xhslink.com` short links and App / web share links. |
+| **Full body text** | Complete note body, with hashtags separated out and cleaned. |
+| **All images downloaded** | Images are saved into your local vault, so they stay readable offline and survive note deletion. |
+| **Engagement metrics** | Like / save / comment / share counts written to frontmatter — useful for filtering for high-performing notes. |
+| **Publish date & author** | Real publish date, author nickname and author ID. |
+| **Configurable folders** | Separate configurable destinations for notes and images. |
+| **Configurable frontmatter** | Add, remove, reorder, enable or disable fields; values support placeholders. |
+| **Emoji-safe filenames** | Filenames keep Chinese characters, emoji and punctuation without dropping or corrupting them. |
+| **Video notes** | Video notes keep a remote direct link plus cover image. |
 
-### Placeholders / 可用占位符
+### Placeholders
 
 Use these in any frontmatter field value:
 
@@ -30,11 +30,11 @@ Use these in any frontmatter field value:
 | `{{title}}` | Note title |
 | `{{source}}` | Original share link |
 | `{{videoUrl}}` | Video direct URL (video notes only) |
-| `{{publishDate}}` | **Note publish date** (`YYYY-MM-DD`) |
+| `{{publishDate}}` | Note publish date (`YYYY-MM-DD`) |
 | `{{author}}` | Author nickname |
 | `{{authorId}}` | Author user ID |
 | `{{likedCount}}` | Like count |
-| `{{collectedCount}}` | Save/collect count |
+| `{{collectedCount}}` | Save / collect count |
 | `{{commentCount}}` | Comment count |
 | `{{shareCount}}` | Share count |
 | `{{ipLocation}}` | Author IP location |
@@ -50,17 +50,17 @@ aliases:
 created: {{date}}
 published: {{publishDate}}
 author: {{author}}
-stats: 赞{{likedCount}} 藏{{collectedCount}} 评{{commentCount}}
+stats: Liked {{likedCount}} · Saved {{collectedCount}} · Comments {{commentCount}}
 source: {{source}}
 tags:
-  - 类型/摘录
-  - 状态/待加工
+  - type/excerpt
+  - status/to-process
 ---
 ```
 
 ---
 
-## Network usage / 网络使用声明
+## Network usage
 
 **Required disclosure.** This plugin makes network requests, and only in the following situations:
 
@@ -80,7 +80,7 @@ Everything is processed locally on your machine. Imported notes are plain Markdo
 
 ---
 
-## Installation / 安装
+## Installation
 
 ### Manual install
 
@@ -95,7 +95,7 @@ Add the repository URL to [BRAT](https://github.com/TfTHacker/obsidian42-brat) t
 
 ---
 
-## Usage / 使用
+## Usage
 
 1. Copy a Xiaohongshu share link (App: *Share → Copy link*, or the web share button).
 2. In Obsidian, click the ribbon icon or run the command **Import Xiaohongshu note**.
@@ -107,7 +107,7 @@ Add the repository URL to [BRAT](https://github.com/TfTHacker/obsidian42-brat) t
 
 ---
 
-## Scope & limitations / 范围与限制
+## Scope & limitations
 
 - Only **public single notes** are supported. This plugin does not scrape a creator's full profile, search results, or your own bookmarks/likes.
 - **Comments cannot be imported.** Xiaohongshu serves comment content through a separate endpoint that requires an authenticated session, which this plugin deliberately does not use.
@@ -116,7 +116,7 @@ Add the repository URL to [BRAT](https://github.com/TfTHacker/obsidian42-brat) t
 
 ---
 
-## Credits / 致谢
+## Credits
 
 This project is built on the work of others, and is released under the same MIT license:
 
