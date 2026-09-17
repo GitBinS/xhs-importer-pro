@@ -5,6 +5,28 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.11]
+
+### Fixed / 修复
+
+- **Author-profile fetches failed silently and were cached as failures.** The profile endpoint is rate limited — sending several requests back to back gets them redirected to a login page. Two problems followed:
+  1) a failed fetch was written to the cache, so the same author could never be retried within the session;
+  2) there was no throttling between profile requests, so batch imports regularly lost author IDs.
+  **作者主页抓取会静默失败，且失败结果被写进缓存。** 该接口有限流 —— 连续请求会被重定向到登录页。由此带来两个问题：① 抓取失败会写入缓存，导致同一作者在本次会话内再也不会重试；② 主页请求之间没有节流，批量导入时常丢小红书号。
+  - Failed fetches are **no longer cached**.
+    抓取失败**不再写入缓存**。
+  - Profile requests are retried up to 3 times with backoff and jitter.
+    主页请求会**重试最多 3 次**，带退避与随机抖动。
+  - A minimum 5 s gap is enforced between profile requests.
+    主页请求之间强制**至少 5 秒间隔**。
+
+### Added / 新增
+
+- **New command: Backfill missing author info.** Scans your note folder for notes whose `authorRedId` is empty and re-fetches it from the note's `source` link, then writes the value back into the frontmatter. Useful when a rate limit caused the ID to be missed on import (re-importing would be treated as a duplicate).
+  **新增命令「补抓作者的缺失信息」**：扫描笔记目录里 `authorRedId` 为空的笔记，按其 `source` 链接重新抓取并回填 frontmatter。用于首页限流漏抓后的补救（重导会被判重复，故单独提供入口）。
+
+---
+
 ## [1.0.10]
 
 ### Fixed / 修复

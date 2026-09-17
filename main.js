@@ -221,6 +221,11 @@ const I18N = {
     batchProgress: (cur, total) => `正在导入第 ${cur}/${total} 条…`,
     batchFailedList: (titles) => `失败：${titles}`,
     noticeDuplicate: (title) => `已跳过重复笔记：${title}`,
+    backfillCommand: "补抓作者的缺失信息",
+    backfillNone: "没有需要补抓的笔记（authorRedId 都已有值或缺少 source）。",
+    backfillStart: (n) => `开始补抓 ${n} 篇笔记的作者信息…`,
+    backfillDone: (ok, fail) => `补抓完成：成功 ${ok} 篇，失败 ${fail} 篇`,
+    backfillTip: "失败通常是主页被临时限流，稍后再执行一次即可。",
     setNoteFolderName: "笔记保存目录",
     setNoteFolderDesc: "导入的笔记默认保存到这个目录。",
     setImageFolderName: "图片保存目录",
@@ -267,6 +272,11 @@ const I18N = {
     batchProgress: (cur, total) => `Importing ${cur} of ${total}...`,
     batchFailedList: (titles) => `Failed: ${titles}`,
     noticeDuplicate: (title) => `Skipped duplicate note: ${title}`,
+    backfillCommand: "Backfill missing author info",
+    backfillNone: "Nothing to backfill (authorRedId already filled, or source missing).",
+    backfillStart: (n) => `Backfilling author info for ${n} note(s)...`,
+    backfillDone: (ok, fail) => `Backfill finished: ${ok} updated, ${fail} failed`,
+    backfillTip: "Failures are usually temporary profile rate limits — run it again later.",
     setNoteFolderName: "Default note folder",
     setNoteFolderDesc: "Imported notes will use this folder by default.",
     setImageFolderName: "Default image folder",
@@ -316,10 +326,16 @@ function normalizeContentLines(text) {
 // [本地增强] 作者主页信息缓存：同一作者只抓一次，避免重复请求
 const authorProfileCache = new Map();
 
+// [本地增强] 主页请求的最小间隔。主页接口对"连发"很敏感，
+// 连发会被重定向到登录页；这里强制拉开间隔以提高成功率。
+const AUTHOR_PROFILE_MIN_GAP_MS = 5000;
+let lastAuthorProfileFetchAt = 0;
+
 // [本地增强] 抓取作者主页，取「小红书号」等信息。
 // 说明：小红书号（redId）只在用户主页下发，笔记页没有这个字段。
-// 主页 URL 无需登录、无需 token 即可访问。
-async function fetchAuthorProfile(userId) {
+// 主页 URL 无需登录即可访问，但**有明显限流**：连续请求会被重定向到登录页，
+// 因此这里自带重试 + 退避，并且「失败不写缓存」，以便后续重试。
+async function fetchAuthorProfile(userId, options = {}) {
   if (!userId) {
     return null;
   }
@@ -328,43 +344,65 @@ async function fetchAuthorProfile(userId) {
     return authorProfileCache.get(userId);
   }
 
-  try {
-    const url = `https://www.xiaohongshu.com/user/profile/${userId}`;
-    const html = (await requestUrl({ url, headers: { ...XHS_REQUEST_HEADERS } })).text;
-    const match = html.match(/window\.__INITIAL_STATE__=(.*?)<\/script>/s);
-    if (!match) {
-      authorProfileCache.set(userId, null);
-      return null;
+  const maxAttempts = options.retries ?? 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    // 与上一次主页请求拉开最小间隔（带随机抖动），避免连发被限流
+    const sinceLast = Date.now() - lastAuthorProfileFetchAt;
+    if (sinceLast < AUTHOR_PROFILE_MIN_GAP_MS) {
+      await sleep(AUTHOR_PROFILE_MIN_GAP_MS - sinceLast + Math.floor(Math.random() * 1500));
     }
+    lastAuthorProfileFetchAt = Date.now();
 
-    // 主页的初始状态里含 `new Set([...])`，标准 JSON.parse 会失败，需先替换
-    const cleaned = match[1]
-      .trim()
-      .replace(/undefined/g, "null")
-      .replace(/new Set\(\[[^\]]*\]\)/g, "[]");
+    try {
+      const url = `https://www.xiaohongshu.com/user/profile/${userId}`;
+      const html = (await requestUrl({ url, headers: { ...XHS_REQUEST_HEADERS } })).text;
 
-    const state = JSON.parse(cleaned);
-    const basic = state?.user?.userPageData?.basicInfo;
-    const interactions = state?.user?.userPageData?.interactions || [];
-    const pick = (type) => interactions.find((item) => item?.type === type)?.count || "";
+      const match = html.match(/window\.__INITIAL_STATE__=(.*?)<\/script>/s);
+      if (!match) {
+        // 被限流重定向到登录页时会走到这里
+        throw new Error("profile page returned no initial state (likely rate limited)");
+      }
 
-    const profile = {
-      redId: basic?.redId || "",
-      nickname: basic?.nickname || "",
-      desc: basic?.desc || "",
-      ipLocation: basic?.ipLocation || "",
-      fans: pick("fans"),
-      follows: pick("follows"),
-      likesAndCollects: pick("interaction"),
-    };
+      // 主页的初始状态里含 `new Set([...])`，标准 JSON.parse 会失败，需先替换
+      const cleaned = match[1]
+        .trim()
+        .replace(/undefined/g, "null")
+        .replace(/new Set\(\[[^\]]*\]\)/g, "[]");
 
-    authorProfileCache.set(userId, profile);
-    return profile;
-  } catch (error) {
-    console.log(`Failed to fetch author profile for ${userId}: ${error.message}`);
-    authorProfileCache.set(userId, null);
-    return null;
+      const state = JSON.parse(cleaned);
+      const basic = state?.user?.userPageData?.basicInfo;
+      if (!basic) {
+        throw new Error("profile page has no basicInfo");
+      }
+
+      const interactions = state?.user?.userPageData?.interactions || [];
+      const pick = (type) => interactions.find((item) => item?.type === type)?.count || "";
+
+      const profile = {
+        redId: basic?.redId || "",
+        nickname: basic?.nickname || "",
+        desc: basic?.desc || "",
+        ipLocation: basic?.ipLocation || "",
+        fans: pick("fans"),
+        follows: pick("follows"),
+        likesAndCollects: pick("interaction"),
+      };
+
+      authorProfileCache.set(userId, profile);
+      return profile;
+    } catch (error) {
+      console.log(`Author profile attempt ${attempt}/${maxAttempts} failed for ${userId}: ${error.message}`);
+      if (attempt < maxAttempts) {
+        // 退避后重试，间隔带随机抖动
+        await sleep(2500 + Math.floor(Math.random() * 2500));
+      }
+    }
   }
+
+  // [关键] 失败不写缓存 —— 否则一次限流会让该作者在整个会话内都无法再取到信息
+  console.log(`Author profile unavailable for ${userId} after ${maxAttempts} attempts`);
+  return null;
 }
 
 function createFieldId() {
@@ -477,6 +515,15 @@ class XiaohongshuImporterPlugin extends Plugin {
       id: "import",
       name: t("commandName"),
       callback: runImport,
+    });
+
+    // [补抓] 为已导入但缺失作者信息的笔记回填
+    this.addCommand({
+      id: "backfill-author-info",
+      name: t("backfillCommand"),
+      callback: async () => {
+        await this.backfillAuthorInfo();
+      },
     });
 
     this.addSettingTab(new XiaohongshuSettingTab(this.app, this));
@@ -989,6 +1036,88 @@ class XiaohongshuImporterPlugin extends Plugin {
     }
 
     return { ok, skipped, failed };
+  }
+
+  // [补抓] 扫描笔记目录，为 authorRedId 为空的笔记补齐作者信息。
+  // 用于：主页限流导致首次导入时漏抓，事后回填（重导会判重复，故单独提供入口）。
+  async backfillAuthorInfo() {
+    const folder = normalizePath((this.settings.noteFolder || "").trim());
+    const files = this.app.vault.getMarkdownFiles().filter((file) => {
+      if (!folder) {
+        return true;
+      }
+      const parent = file.parent?.path || "";
+      return parent === folder || parent.startsWith(`${folder}/`);
+    });
+
+    const targets = [];
+    for (const file of files) {
+      const content = await this.app.vault.read(file);
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) {
+        continue;
+      }
+
+      const block = fmMatch[1];
+      // 只挑 authorRedId 键后面为空的
+      if (!/^authorRedId:\s*$/m.test(block)) {
+        continue;
+      }
+
+      const sourceMatch = block.match(/^source:\s*(\S+)\s*$/m);
+      if (!sourceMatch) {
+        continue;
+      }
+
+      targets.push({ file, source: sourceMatch[1].trim() });
+    }
+
+    if (targets.length === 0) {
+      new Notice(t("backfillNone"));
+      return { ok: 0, fail: 0 };
+    }
+
+    new Notice(t("backfillStart", targets.length), 4000);
+    let ok = 0;
+    let fail = 0;
+
+    for (let i = 0; i < targets.length; i += 1) {
+      new Notice(t("batchProgress", i + 1, targets.length), 1500);
+      const { file, source } = targets[i];
+
+      try {
+        const html = (await requestUrl({ url: source, headers: { ...XHS_REQUEST_HEADERS } })).text;
+        const note = this.getNoteDetail(html);
+        const profile = await fetchAuthorProfile(note?.user?.userId);
+
+        if (!profile?.redId) {
+          fail += 1;
+        } else {
+          const current = await this.app.vault.read(file);
+          const updated = current.replace(/^(authorRedId:\s*)$/m, `$1 ${profile.redId}`);
+          if (updated !== current) {
+            await this.app.vault.modify(file, updated);
+            ok += 1;
+          } else {
+            fail += 1;
+          }
+        }
+      } catch (error) {
+        console.log(`Backfill failed for ${file.path}: ${error.message}`);
+        fail += 1;
+      }
+
+      if (i < targets.length - 1) {
+        await sleep(randomBatchDelay());
+      }
+    }
+
+    new Notice(t("backfillDone", ok, fail), 8000);
+    if (fail > 0) {
+      new Notice(t("backfillTip"), 8000);
+    }
+
+    return { ok, fail };
   }
 
   extractTitle(html, note = this.getNoteDetail(html)) {
