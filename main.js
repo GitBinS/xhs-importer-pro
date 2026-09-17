@@ -840,8 +840,10 @@ class XiaohongshuImporterPlugin extends Plugin {
           markdown += `![Cover Image](${localImagePaths[0]})\n\n`;
         }
 
-        const cleanedContent = content.replace(/#[^#\s]*(?:\s+#[^#\s]*)*\s*/g, "").trim();
-        markdown += `${cleanedContent.split("\n").join("\n")}\n\n`;
+        const cleanedContent = normalizeContentLines(
+          content.replace(/#[^#\s]*(?:\s+#[^#\s]*)*\s*/g, ""),
+        );
+        markdown += `${cleanedContent}\n\n`;
 
         const tags = this.extractTags(content);
         if (tags.length > 0) {

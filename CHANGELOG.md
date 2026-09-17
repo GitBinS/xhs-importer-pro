@@ -5,6 +5,15 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.9]
+
+### Fixed / 修复
+
+- **Body normalization was only applied to video notes.** Image notes still kept the pseudo-blank lines made of tabs/spaces from the source. Both branches now go through the same cleaner.
+  正文清理此前**只作用于视频笔记**，图文笔记仍会保留源文本里的 tab/空格伪空行。现在两条分支统一走同一套清理逻辑。
+
+---
+
 ## [1.0.8]
 
 ### Added / 新增
