@@ -5,6 +5,26 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.12]
+
+### Removed / 移除
+
+- **Author-profile fetching and the "Backfill missing author info" command.**
+  作者主页抓取功能，以及「补抓作者的缺失信息」命令。
+
+### Why / 原因
+
+The author's Xiaohongshu ID (小红书号) **is not present in the note page data** — it only exists on the author's profile page, and that endpoint is aggressively rate limited. Back-to-back requests get redirected to a login page, so during a batch import most notes lost the ID, and retrying rarely helped. Shipping a feature that only works occasionally is worse than not shipping it.
+
+小红书号**不在笔记页数据里**，只存在于作者主页；而该接口限流严格 —— 连发请求会被重定向到登录页，批量导入时多数笔记都拿不到，重试也收效甚微。与其留一个时灵时不灵的功能，不如移除。
+
+### Kept / 保留
+
+- `{{authorUrl}}` — the author's profile link, derived from `userId` directly. **This needs no extra request**, so it stays. Open it to see the Xiaohongshu ID on the profile page.
+  `{{authorUrl}}` 保留 —— 由 `userId` 直接拼出，**不需要额外请求**。点开即可在主页看到小红书号。
+
+---
+
 ## [1.0.11]
 
 ### Fixed / 修复
