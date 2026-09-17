@@ -5,6 +5,38 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.8]
+
+### Added / 新增
+
+**Batch import / 批量导入**
+
+- Paste **multiple share links at once** (one per line, or a whole block of text) — all links in the text are detected and imported in order.
+  可**一次粘贴多条分享链接**（一行一条，或直接糊一大段文本），插件会按顺序识别并逐条导入。
+- **Duplicate detection by note ID**, with a persistent index (`imported-notes.json` in the plugin folder). Already-imported notes are skipped instead of being written twice. Deduplication is independent of your frontmatter configuration.
+  **按笔记 ID 去重**，索引持久化在插件目录的 `imported-notes.json`。已导入过的笔记会跳过而不是重复落盘，且不依赖你的 frontmatter 配置。
+- **Random throttling** between requests (1.5–3.5 s) to reduce the risk of rate limiting.
+  请求之间加入**随机节流**（1.5–3.5 秒），降低被限流的风险。
+- Per-run limit of **20 links**; exceeding it disables the submit button with an explanatory hint.
+  单次上限 **20 条**，超出会禁用提交按钮并给出提示。
+- Failure of one link does not abort the batch; failed links are listed at the end.
+  单条失败**不中断**整批，失败的链接会在末尾列出。
+
+### Changed / 变更
+
+**Import modal / 导入弹窗**
+
+- Live link counter under the textarea ("3 link(s) detected").
+  textarea 下方新增**实时链接计数**。
+- Submit button now shows the count ("Import 3 note(s)") and is disabled when no link is detected.
+  提交按钮显示条数（"导入 3 条"），未识别到链接时禁用。
+- Deduplication notice added; textarea is taller and resizable.
+  新增去重说明；textarea 加高并支持拖拽调整。
+- `Enter` now inserts a newline (needed for multi-line pasting); submit with `Ctrl/Cmd + Enter`.
+  `Enter` 改为换行（批量粘贴需要），提交用 `Ctrl/Cmd + Enter`。
+
+---
+
 ## [1.0.7]
 
 ### Added / 新增

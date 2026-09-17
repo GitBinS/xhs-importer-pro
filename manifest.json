@@ -1,7 +1,7 @@
 {
 	"id": "xhs-importer-pro",
 	"name": "xhs-importer-pro",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"minAppVersion": "1.4.0",
 	"description": "Import Xiaohongshu notes into your vault with configurable folders, frontmatter fields, local image downloads, and engagement metrics such as likes, saves, and comments.",
 	"author": "GitBinS",

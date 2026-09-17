@@ -100,6 +100,43 @@ function extractXHSURL(text) {
   return null;
 }
 
+// [批量] 单次导入上限与请求间隔（拟人化节流）
+const BATCH_MAX_PER_RUN = 20;
+const BATCH_DELAY_MIN_MS = 1500;
+const BATCH_DELAY_MAX_MS = 3500;
+
+// [批量] 已导入笔记索引文件名（存于插件目录，用于跨批次去重）
+const IMPORT_INDEX_FILE = "imported-notes.json";
+
+// [批量] 提取文本里的所有小红书链接：保持出现顺序，并按规范化 URL 去重
+function extractAllXHSURLs(text) {
+  const candidates =
+    String(text || "").match(
+      /https?:\/\/[^\s\u200B-\u200D\u2060\uFEFF<>"'`,，。；！？？、)\]}>）】》」』]+/giu,
+    ) || [];
+
+  const seen = new Set();
+  const result = [];
+  for (const candidate of candidates) {
+    const normalized = normalizeXHSURL(candidate);
+    if (normalized && !seen.has(normalized)) {
+      seen.add(normalized);
+      result.push(normalized);
+    }
+  }
+
+  return result;
+}
+
+function randomBatchDelay() {
+  const span = BATCH_DELAY_MAX_MS - BATCH_DELAY_MIN_MS;
+  return BATCH_DELAY_MIN_MS + Math.floor(Math.random() * (span + 1));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // [本地增强] 笔记发布时间戳（ms）→ YYYY-MM-DD
 function formatPublishDate(timestamp) {
   const value = Number(timestamp);
@@ -171,9 +208,19 @@ const I18N = {
     noticeNoVideoUrl: "没找到视频直链，只导入了封面图。",
     modalTitle: "导入小红书笔记",
     modalPasteLabel: "粘贴分享文本或链接：",
-    modalPlaceholder: "例如：64 不叫小黄了发布了一篇小红书笔记……",
+    modalPlaceholder: "一行一条，可一次粘贴多条分享链接（也支持直接糊一大段文本）",
+    modalCountEmpty: "还没有识别到小红书链接",
+    modalCountHint: (n) => `已识别到 ${n} 条链接`,
+    modalCountOver: (n, max) => `已识别到 ${n} 条链接，超出单次上限 ${max} 条，请分批导入`,
+    modalDedupeHint: "已导入过的笔记会自动跳过（按笔记 ID 判断）。",
     modalDownloadLabel: "本次导入同时下载图片到本地",
     modalImportButton: "导入",
+    modalImportCount: (n) => `导入 ${n} 条`,
+    batchSummary: (ok, skipped, failed) =>
+      `批量导入完成：成功 ${ok} 条，跳过重复 ${skipped} 条，失败 ${failed} 条`,
+    batchProgress: (cur, total) => `正在导入第 ${cur}/${total} 条…`,
+    batchFailedList: (titles) => `失败：${titles}`,
+    noticeDuplicate: (title) => `已跳过重复笔记：${title}`,
     setNoteFolderName: "笔记保存目录",
     setNoteFolderDesc: "导入的笔记默认保存到这个目录。",
     setImageFolderName: "图片保存目录",
@@ -207,9 +254,19 @@ const I18N = {
     noticeNoVideoUrl: "Video URL not found; imported note with cover image only.",
     modalTitle: "Import Xiaohongshu note",
     modalPasteLabel: "Paste the share text below:",
-    modalPlaceholder: "e.g., 64 不叫小黄了发布了一篇小红书笔记...",
+    modalPlaceholder: "One link per line. Multiple share links at once are supported.",
+    modalCountEmpty: "No Xiaohongshu link detected yet",
+    modalCountHint: (n) => `${n} link(s) detected`,
+    modalCountOver: (n, max) => `${n} links detected, over the ${max}-per-run limit. Please split the batch.`,
+    modalDedupeHint: "Notes that were already imported are skipped automatically (matched by note ID).",
     modalDownloadLabel: "Download images locally for this import",
     modalImportButton: "Import",
+    modalImportCount: (n) => `Import ${n} note(s)`,
+    batchSummary: (ok, skipped, failed) =>
+      `Batch import finished: ${ok} imported, ${skipped} skipped as duplicate, ${failed} failed`,
+    batchProgress: (cur, total) => `Importing ${cur} of ${total}...`,
+    batchFailedList: (titles) => `Failed: ${titles}`,
+    noticeDuplicate: (title) => `Skipped duplicate note: ${title}`,
     setNoteFolderName: "Default note folder",
     setNoteFolderDesc: "Imported notes will use this folder by default.",
     setImageFolderName: "Default image folder",
@@ -393,38 +450,33 @@ class XiaohongshuImporterPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
 
-    this.addRibbonIcon("book", t("ribbonTooltip"), async () => {
+    // [批量] 统一的导入入口：1 条走单篇流程，多条走批量流程
+    const runImport = async () => {
       const result = await this.promptForShareText();
       if (!result || !result.text) {
         return;
       }
 
-      const url = this.extractURL(result.text);
-      if (!url) {
+      const urls = result.urls || extractAllXHSURLs(result.text);
+      if (urls.length === 0) {
         new Notice(t("noticeNoUrl"));
         return;
       }
 
-      await this.importXHSNote(url, result.downloadMedia);
-    });
+      if (urls.length === 1) {
+        await this.importXHSNote(urls[0], result.downloadMedia);
+        return;
+      }
+
+      await this.importBatch(urls, result.downloadMedia);
+    };
+
+    this.addRibbonIcon("book", t("ribbonTooltip"), runImport);
 
     this.addCommand({
       id: "import",
       name: t("commandName"),
-      callback: async () => {
-        const result = await this.promptForShareText();
-        if (!result || !result.text) {
-          return;
-        }
-
-        const url = this.extractURL(result.text);
-        if (!url) {
-          new Notice(t("noticeNoUrl"));
-          return;
-        }
-
-        await this.importXHSNote(url, result.downloadMedia);
-      },
+      callback: runImport,
     });
 
     this.addSettingTab(new XiaohongshuSettingTab(this.app, this));
@@ -687,7 +739,7 @@ class XiaohongshuImporterPlugin extends Plugin {
     return `${lines.join("\n")}\n`;
   }
 
-  async importXHSNote(url, downloadMedia) {
+  async importXHSNote(url, downloadMedia, options = {}) {
     try {
       const html = (
         await requestUrl({
@@ -701,6 +753,12 @@ class XiaohongshuImporterPlugin extends Plugin {
       }
 
       const title = this.extractTitle(html, note);
+
+      // [批量] 按 noteId 去重：已导入过的直接跳过，不重复落盘
+      const noteId = note?.noteId || "";
+      if (options.index && noteId && options.index[noteId]) {
+        return { ok: false, skipped: true, title, noteId };
+      }
       const videoUrl = this.extractVideoUrl(html, note);
       const images = this.extractImages(html, note);
       const content = this.extractContent(html, note);
@@ -802,11 +860,99 @@ class XiaohongshuImporterPlugin extends Plugin {
       const createdFile = await this.app.vault.create(notePath, markdown);
       await this.app.workspace.getLeaf(true).openFile(createdFile);
       await this.saveSettings();
-      new Notice(t("noticeImported", notePath));
+
+      // [批量] 记入去重索引
+      if (options.index && noteId) {
+        options.index[noteId] = {
+          title,
+          url,
+          importedAt: new Date().toISOString(),
+        };
+      }
+
+      if (!options.silent) {
+        new Notice(t("noticeImported", notePath));
+      }
+
+      return { ok: true, skipped: false, title, noteId, path: notePath };
     } catch (error) {
       console.log(`Failed to import note from ${url}: ${error.message}`);
-      new Notice(t("noticeImportFailed", error.message));
+      if (!options.silent) {
+        new Notice(t("noticeImportFailed", error.message));
+      }
+      return { ok: false, skipped: false, error: error.message, url };
     }
+  }
+
+  // [批量] 去重索引文件（放在插件目录，不污染 vault 内容区）
+  getImportIndexPath() {
+    return normalizePath(
+      `${this.app.vault.configDir}/plugins/${this.manifest.id}/${IMPORT_INDEX_FILE}`,
+    );
+  }
+
+  async loadImportIndex() {
+    try {
+      const raw = await this.app.vault.adapter.read(this.getImportIndexPath());
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  async saveImportIndex(index) {
+    try {
+      await this.app.vault.adapter.write(
+        this.getImportIndexPath(),
+        JSON.stringify(index, null, 2),
+      );
+    } catch (error) {
+      console.log(`Failed to save import index: ${error.message}`);
+    }
+  }
+
+  // [批量] 逐条导入：批内去重 → 随机节流 → 进度提示 → 末尾汇总
+  async importBatch(urls, downloadMedia) {
+    const index = await this.loadImportIndex();
+    const total = urls.length;
+    let ok = 0;
+    let skipped = 0;
+    let failed = 0;
+    const failedList = [];
+
+    for (let i = 0; i < total; i += 1) {
+      // 第 2 条起先等一段随机时间，避免连续请求
+      if (i > 0) {
+        await sleep(randomBatchDelay());
+      }
+
+      new Notice(t("batchProgress", i + 1, total), 1500);
+
+      const result = await this.importXHSNote(urls[i], downloadMedia, {
+        index,
+        silent: true,
+      });
+
+      if (result?.ok) {
+        ok += 1;
+      } else if (result?.skipped) {
+        skipped += 1;
+      } else {
+        failed += 1;
+        failedList.push(result?.title || result?.error || urls[i]);
+      }
+
+      // 每条都落盘，中途中断也不丢已完成的记录
+      await this.saveImportIndex(index);
+    }
+
+    new Notice(t("batchSummary", ok, skipped, failed), 8000);
+    if (failedList.length > 0) {
+      new Notice(t("batchFailedList", failedList.join(" / ")), 12000);
+    }
+
+    return { ok, skipped, failed };
   }
 
   extractTitle(html, note = this.getNoteDetail(html)) {
@@ -1108,7 +1254,20 @@ class XiaohongshuImportModal extends Modal {
       cls: "xhs-modal-textarea",
       attr: {
         placeholder: t("modalPlaceholder"),
+        rows: "6",
       },
+    });
+
+    // [批量] 实时显示识别到的链接条数
+    const countEl = textRow.createEl("p", {
+      text: t("modalCountEmpty"),
+      cls: "xhs-count-hint",
+    });
+
+    // [批量] 去重说明
+    textRow.createEl("p", {
+      text: t("modalDedupeHint"),
+      cls: "xhs-dedupe-hint",
     });
 
     const toggleWrapper = contentEl
@@ -1130,27 +1289,53 @@ class XiaohongshuImportModal extends Modal {
       attr: { for: checkboxId },
     });
 
-    contentEl
+    const submitButton = contentEl
       .createEl("div", { cls: ["xhs-modal-row", "xhs-button-row"] })
-      .createEl("button", { text: t("modalImportButton"), cls: "xhs-submit-button" })
-      .addEventListener("click", () => {
-        this.result = {
-          text: textarea.value.trim(),
-          downloadMedia: this.downloadMedia,
-        };
-        this.close();
-      });
+      .createEl("button", { text: t("modalImportButton"), cls: "xhs-submit-button" });
+
+    const submit = () => {
+      const urls = extractAllXHSURLs(textarea.value);
+      if (urls.length === 0) {
+        return;
+      }
+      this.result = {
+        text: textarea.value.trim(),
+        urls,
+        downloadMedia: this.downloadMedia,
+      };
+      this.close();
+    };
+
+    const updateState = () => {
+      const count = extractAllXHSURLs(textarea.value).length;
+      if (count === 0) {
+        countEl.setText(t("modalCountEmpty"));
+        countEl.toggleClass("is-warning", false);
+        submitButton.setText(t("modalImportButton"));
+        submitButton.disabled = true;
+        return;
+      }
+
+      const over = count > BATCH_MAX_PER_RUN;
+      countEl.setText(over ? t("modalCountOver", count, BATCH_MAX_PER_RUN) : t("modalCountHint", count));
+      countEl.toggleClass("is-warning", over);
+      submitButton.setText(t("modalImportCount", count));
+      submitButton.disabled = over;
+    };
+
+    textarea.addEventListener("input", updateState);
+    submitButton.addEventListener("click", submit);
 
     textarea.addEventListener("keypress", (event) => {
-      if (event.key === "Enter" && !event.shiftKey) {
+      // Ctrl/Cmd + Enter 提交；单独 Enter 用于换行（批量粘贴需要换行）
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
         event.preventDefault();
-        this.result = {
-          text: textarea.value.trim(),
-          downloadMedia: this.downloadMedia,
-        };
-        this.close();
+        submit();
       }
     });
+
+    updateState();
+    textarea.focus();
   }
 
   onClose() {
@@ -1169,6 +1354,9 @@ module.exports = {
     formatPublishDate,
     normalizeCount,
     sanitizeFilenamePreserveEmoji,
+    extractAllXHSURLs,
+    normalizeContentLines,
+    BATCH_MAX_PER_RUN,
   },
 };
 
