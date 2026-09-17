@@ -496,10 +496,6 @@ class XiaohongshuImporterPlugin extends Plugin {
     });
   }
 
-  extractURL(text) {
-    return extractXHSURL(text);
-  }
-
   sanitizeFilename(text) {
     // [本地增强] 保留 emoji 与中文标点，只剔除文件系统不安全字符
     return sanitizeFilenamePreserveEmoji(text);
@@ -541,18 +537,6 @@ class XiaohongshuImporterPlugin extends Plugin {
   }
 
   async getUniqueFilePath(folderPath, baseName, extension) {
-    let candidate = this.buildVaultFilePath(folderPath, `${baseName}.${extension}`);
-    let counter = 1;
-
-    while (await this.app.vault.adapter.exists(candidate)) {
-      candidate = this.buildVaultFilePath(folderPath, `${baseName}-${counter}.${extension}`);
-      counter += 1;
-    }
-
-    return candidate;
-  }
-
-  async getUniqueMediaPath(folderPath, baseName, extension) {
     let candidate = this.buildVaultFilePath(folderPath, `${baseName}.${extension}`);
     let counter = 1;
 
