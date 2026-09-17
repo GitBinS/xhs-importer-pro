@@ -5,6 +5,31 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.7]
+
+### Added / 新增
+
+**Author profile fields / 作者主页信息**
+
+- New placeholders populated from the author's profile page:
+  新增从作者主页获取的占位符：
+  - `{{authorRedId}}` — **Xiaohongshu ID (小红书号)**, e.g. `63513864442`
+  - `{{authorDesc}}` — author bio / 作者简介
+  - `{{authorUrl}}` — author profile link / 作者主页链接
+  - `{{authorFans}}` — follower count / 粉丝数
+  - `{{authorIpLocation}}` — author IP location / 作者 IP 属地
+- New setting **Fetch author profile** (on by default) with a per-author cache, so each author is requested at most once per session.
+  新增设置项「抓取作者小红书号」（默认开启），并按作者缓存，同一作者每次会话最多请求一次。
+
+### Notes / 说明
+
+- The Xiaohongshu ID is **not present in the note page data** — it only exists on the author's profile page, so one extra request is required. The profile URL is accessible without login or tokens.
+  小红书号**不在笔记页数据中**，只存在于作者主页，因此需要额外一次请求。主页 URL 无需登录、无需 token 即可访问。
+- Profile-page initial state contains `new Set([...])`, which is not valid JSON; the resolver rewrites it before parsing.
+  作者主页的初始状态里含 `new Set([...])`（非合法 JSON），解析前会做替换处理。
+
+---
+
 ## [1.0.6]
 
 ### Fixed / 修复

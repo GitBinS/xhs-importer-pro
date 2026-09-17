@@ -17,6 +17,8 @@ const DEFAULT_SETTINGS = {
   noteFolder: "00.收集箱",
   imageFolder: "附件/XHS",
   downloadMedia: true,
+  // [本地增强] 是否额外抓取作者主页以获取「小红书号」等信息
+  fetchAuthorProfile: true,
   frontmatterFields: [],
 };
 
@@ -178,6 +180,9 @@ const I18N = {
     setImageFolderDesc: "下载的图片默认保存到这个目录。",
     setDownloadName: "下载图片",
     setDownloadDesc: "开启后，笔记图片会下载到本地库。视频仍保留远程链接。",
+    setFetchAuthorName: "抓取作者小红书号",
+    setFetchAuthorDesc:
+      "额外访问一次作者主页，用于获取小红书号、作者简介、粉丝数与主页链接。同一作者只请求一次，结果会缓存。",
     setFrontmatterHeading: "Frontmatter 字段",
     setPlaceholdersHint: "可用占位符：",
     setFieldName: (n) => `字段 ${n}`,
@@ -212,6 +217,9 @@ const I18N = {
     setDownloadName: "Download images",
     setDownloadDesc:
       "If enabled, note images are downloaded to the local vault. Videos remain remote links.",
+    setFetchAuthorName: "Fetch author profile",
+    setFetchAuthorDesc:
+      "Makes one extra request to the author's profile page to retrieve their Xiaohongshu ID, bio, follower count and profile link. Cached per author, so each author is requested once.",
     setFrontmatterHeading: "Frontmatter Fields",
     setPlaceholdersHint: "Supported placeholders:",
     setFieldName: (n) => `Field ${n}`,
@@ -246,6 +254,60 @@ function normalizeContentLines(text) {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+// [本地增强] 作者主页信息缓存：同一作者只抓一次，避免重复请求
+const authorProfileCache = new Map();
+
+// [本地增强] 抓取作者主页，取「小红书号」等信息。
+// 说明：小红书号（redId）只在用户主页下发，笔记页没有这个字段。
+// 主页 URL 无需登录、无需 token 即可访问。
+async function fetchAuthorProfile(userId) {
+  if (!userId) {
+    return null;
+  }
+
+  if (authorProfileCache.has(userId)) {
+    return authorProfileCache.get(userId);
+  }
+
+  try {
+    const url = `https://www.xiaohongshu.com/user/profile/${userId}`;
+    const html = (await requestUrl({ url, headers: { ...XHS_REQUEST_HEADERS } })).text;
+    const match = html.match(/window\.__INITIAL_STATE__=(.*?)<\/script>/s);
+    if (!match) {
+      authorProfileCache.set(userId, null);
+      return null;
+    }
+
+    // 主页的初始状态里含 `new Set([...])`，标准 JSON.parse 会失败，需先替换
+    const cleaned = match[1]
+      .trim()
+      .replace(/undefined/g, "null")
+      .replace(/new Set\(\[[^\]]*\]\)/g, "[]");
+
+    const state = JSON.parse(cleaned);
+    const basic = state?.user?.userPageData?.basicInfo;
+    const interactions = state?.user?.userPageData?.interactions || [];
+    const pick = (type) => interactions.find((item) => item?.type === type)?.count || "";
+
+    const profile = {
+      redId: basic?.redId || "",
+      nickname: basic?.nickname || "",
+      desc: basic?.desc || "",
+      ipLocation: basic?.ipLocation || "",
+      fans: pick("fans"),
+      follows: pick("follows"),
+      likesAndCollects: pick("interaction"),
+    };
+
+    authorProfileCache.set(userId, profile);
+    return profile;
+  } catch (error) {
+    console.log(`Failed to fetch author profile for ${userId}: ${error.message}`);
+    authorProfileCache.set(userId, null);
+    return null;
+  }
 }
 
 function createFieldId() {
@@ -554,7 +616,7 @@ class XiaohongshuImporterPlugin extends Plugin {
     return normalized.startsWith("/") ? normalized : `/${normalized}`;
   }
 
-  buildPlaceholderContext({ title, source, date, videoUrl, note }) {
+  buildPlaceholderContext({ title, source, date, videoUrl, note, authorProfile }) {
     const interact = note?.interactInfo || {};
 
     return {
@@ -577,6 +639,14 @@ class XiaohongshuImporterPlugin extends Plugin {
         .map((tag) => (typeof tag === "string" ? tag : tag?.name || ""))
         .filter(Boolean)
         .join(" "),
+      // [本地增强] 以下字段来自作者主页（需额外一次请求，可在设置中关闭）
+      authorRedId: authorProfile?.redId || "",
+      authorDesc: authorProfile?.desc || "",
+      authorIpLocation: authorProfile?.ipLocation || "",
+      authorFans: authorProfile?.fans || "",
+      authorUrl: note?.user?.userId
+        ? `https://www.xiaohongshu.com/user/profile/${note.user.userId}`
+        : "",
     };
   }
 
@@ -647,12 +717,17 @@ class XiaohongshuImporterPlugin extends Plugin {
       const sanitizedTitle = this.sanitizeFilename(title);
       const noteBaseName = this.sanitizeNoteFilename(isVideo ? `[V]${title}` : title);
       const notePath = await this.getUniqueFilePath(noteFolder, noteBaseName, "md");
+      // [本地增强] 可选：抓作者主页取「小红书号」等（同一作者有缓存，不会重复请求）
+      const authorProfile =
+        this.settings.fetchAuthorProfile === false ? null : await fetchAuthorProfile(note?.user?.userId);
+
       const frontmatterContext = this.buildPlaceholderContext({
         title,
         source: url,
         date: today,
         videoUrl,
         note,
+        authorProfile,
       });
 
       let markdown = `${this.buildFrontmatter(frontmatterContext)}# ${title}\n\n`;
@@ -875,9 +950,8 @@ class XiaohongshuSettingTab extends PluginSettingTab {
     // [本地增强] 标明当前为本地改造版本
     containerEl.createEl("p", {
       text:
-        "[本地增强版] 已新增占位符：publishDate / author / authorId / likedCount / collectedCount / " +
-        "commentCount / shareCount / ipLocation / noteType / noteTags / noteId；" +
-        "并修复了封面图重复、图片文件名丢 emoji 两个问题。",
+        "[本地增强版] 已新增：作者小红书号／简介／粉丝数／主页链接、笔记发布时间、点赞收藏评论分享数、" +
+        "以及引用修复（封面图重复、图片路径、文件名丢 emoji）。",
       cls: "xhs-frontmatter-hint",
     });
 
@@ -911,13 +985,35 @@ class XiaohongshuSettingTab extends PluginSettingTab {
         }),
       );
 
+    new Setting(containerEl)
+      .setName(t("setFetchAuthorName"))
+      .setDesc(t("setFetchAuthorDesc"))
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.fetchAuthorProfile !== false).onChange(async (value) => {
+          this.plugin.settings.fetchAuthorProfile = value;
+          await this.plugin.saveSettings();
+        }),
+      );
+
     containerEl.createEl("h3", { text: t("setFrontmatterHeading") });
     containerEl.createEl("p", {
+      text: t("setPlaceholdersHint"),
+      cls: "xhs-frontmatter-hint",
+    });
+    containerEl.createEl("p", {
       text:
-        t("setPlaceholdersHint") +
-        " {{date}}, {{title}}, {{source}}, {{videoUrl}}, {{noteId}}, " +
-        "{{author}}, {{authorId}}, {{publishDate}}, {{ipLocation}}, {{noteType}}, " +
-        "{{likedCount}}, {{collectedCount}}, {{commentCount}}, {{shareCount}}, {{noteTags}}.",
+        "{{date}}, {{title}}, {{source}}, {{videoUrl}}, {{noteId}}, {{noteType}}, {{noteTags}}, " +
+        "{{publishDate}}, {{ipLocation}}",
+      cls: "xhs-frontmatter-hint",
+    });
+    containerEl.createEl("p", {
+      text:
+        "{{author}}, {{authorId}}, {{authorRedId}}, {{authorDesc}}, {{authorUrl}}, " +
+        "{{authorFans}}, {{authorIpLocation}}",
+      cls: "xhs-frontmatter-hint",
+    });
+    containerEl.createEl("p", {
+      text: "{{likedCount}}, {{collectedCount}}, {{commentCount}}, {{shareCount}}",
       cls: "xhs-frontmatter-hint",
     });
 

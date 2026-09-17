@@ -15,6 +15,7 @@ Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown 
 | **All images downloaded** | Images are saved into your local vault, so they stay readable offline and survive note deletion. |
 | **Engagement metrics** | Like / save / comment / share counts written to frontmatter — useful for filtering for high-performing notes. |
 | **Publish date & author** | Real publish date, author nickname and author ID. |
+| **Author Xiaohongshu ID** | Optionally fetches the author's profile to record their Xiaohongshu ID (小红书号), bio, follower count and profile link. Cached per author. |
 | **Configurable folders** | Separate configurable destinations for notes and images. |
 | **Configurable frontmatter** | Add, remove, reorder, enable or disable fields; values support placeholders. |
 | **Emoji-safe filenames** | Filenames keep Chinese characters, emoji and punctuation without dropping or corrupting them. |
@@ -34,6 +35,11 @@ Use these in any frontmatter field value:
 | `{{publishDate}}` | Note publish date (`YYYY-MM-DD`) |
 | `{{author}}` | Author nickname |
 | `{{authorId}}` | Author user ID |
+| `{{authorRedId}}` | **Author Xiaohongshu ID (小红书号)** — requires one extra profile request |
+| `{{authorDesc}}` | Author bio |
+| `{{authorUrl}}` | Author profile link |
+| `{{authorFans}}` | Author follower count |
+| `{{authorIpLocation}}` | Author IP location |
 | `{{likedCount}}` | Like count |
 | `{{collectedCount}}` | Save / collect count |
 | `{{commentCount}}` | Comment count |
@@ -68,6 +74,7 @@ tags:
 | When | What is requested | Why |
 |---|---|---|
 | You trigger an import | An HTTP GET to `www.xiaohongshu.com` for the share link you pasted | To fetch the public note page, from which the title, body text, image URLs, hashtags and engagement counts are parsed |
+| "Fetch author profile" is enabled | An HTTP GET to the author's public profile page on `www.xiaohongshu.com` | To read the author's Xiaohongshu ID, bio and follower count, which are not published on the note page. Cached per author, so each author is fetched at most once per session |
 | "Download images" is enabled | HTTPS GET to Xiaohongshu's CDN (`*.xhscdn.com`) for each image | To save the images into your local vault |
 
 **What this plugin does NOT do:**
