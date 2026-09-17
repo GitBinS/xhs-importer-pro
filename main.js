@@ -639,15 +639,21 @@ class XiaohongshuImporterPlugin extends Plugin {
 
   async downloadMediaFile(url, folderPath, filenameBase, fallbackExtension) {
     try {
+      const extension = this.getExtensionFromUrl(url, fallbackExtension);
+      const targetPath = this.buildVaultFilePath(folderPath, `${filenameBase}.${extension}`);
+
+      // [本地增强] 图片已存在则直接复用，不重复下载。
+      // 典型场景：笔记被删但图片还在，重新导入时不应产生 -1 / -2 副本。
+      if (await this.app.vault.adapter.exists(targetPath)) {
+        return targetPath;
+      }
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
       }
 
-      const extension = this.getExtensionFromUrl(url, fallbackExtension);
-      const targetPath = await this.getUniqueMediaPath(folderPath, filenameBase, extension);
       const bytes = await (await response.blob()).arrayBuffer();
-
       await this.app.vault.adapter.writeBinary(targetPath, bytes);
       return targetPath;
     } catch (error) {
@@ -754,10 +760,15 @@ class XiaohongshuImporterPlugin extends Plugin {
 
       const title = this.extractTitle(html, note);
 
-      // [批量] 按 noteId 去重：已导入过的直接跳过，不重复落盘
+      // [批量] 按 noteId 去重：仅当对应笔记**确实还在仓库里**才算重复。
+      // 若笔记已被用户删除，索引项失效 → 清掉并正常重新导入。
       const noteId = note?.noteId || "";
-      if (options.index && noteId && options.index[noteId]) {
-        return { ok: false, skipped: true, title, noteId };
+      const existing = options.index ? options.index[noteId] : null;
+      if (existing) {
+        if (this.isIndexEntryAlive(existing)) {
+          return { ok: false, skipped: true, title, noteId };
+        }
+        delete options.index[noteId];
       }
       const videoUrl = this.extractVideoUrl(html, note);
       const images = this.extractImages(html, note);
@@ -863,11 +874,12 @@ class XiaohongshuImporterPlugin extends Plugin {
       await this.app.workspace.getLeaf(true).openFile(createdFile);
       await this.saveSettings();
 
-      // [批量] 记入去重索引
+      // [批量] 记入去重索引（含文件路径，便于后续校验笔记是否还在）
       if (options.index && noteId) {
         options.index[noteId] = {
           title,
           url,
+          path: notePath,
           importedAt: new Date().toISOString(),
         };
       }
@@ -901,6 +913,28 @@ class XiaohongshuImporterPlugin extends Plugin {
     } catch (_error) {
       return {};
     }
+  }
+
+  // [去重] 索引项是否仍然有效：对应的笔记文件必须还在 vault 里。
+  // 用户把笔记删掉后索引项即失效，应当允许重新导入 —— 否则会出现
+  // 「仓库里没有这篇笔记，却提示重复」的错误判断。
+  isIndexEntryAlive(entry) {
+    if (!entry) {
+      return false;
+    }
+
+    if (entry.path) {
+      return Boolean(this.app.vault.getAbstractFileByPath(entry.path));
+    }
+
+    // 旧版索引没有 path：用标题在全库反查同名笔记，找不到即视为已被删除
+    if (!entry.title) {
+      return true;
+    }
+
+    return this.app.vault
+      .getMarkdownFiles()
+      .some((file) => file.basename === entry.title || file.name === `${entry.title}.md`);
   }
 
   async saveImportIndex(index) {

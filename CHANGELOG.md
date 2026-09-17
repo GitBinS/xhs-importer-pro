@@ -5,6 +5,21 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.10]
+
+### Fixed / 修复
+
+- **Duplicate detection could not tell "imported" from "still in the vault."** If you deleted an imported note and then imported the same link again, the plugin wrongly reported it as a duplicate and refused to import. Deduplication now requires the note file to **actually still exist** in the vault — deleting a note makes it importable again.
+  **去重此前分不清「导入过」和「仓库里还在」**：删掉已导入的笔记后重新导入同一链接，会被误判为重复而拒绝导入。现在去重要求笔记文件**确实仍在库中**才跳过 —— 删掉笔记后即可重新导入。
+  - The index now stores the note's file path, and validity is checked against the vault.
+    索引新增记录笔记文件路径，并据此到库中校验。
+  - Entries written by older versions (no path) fall back to a vault-wide lookup by note title, so existing indexes are handled correctly too.
+    旧版本写入的索引项（无路径）会退化为**按标题全库反查**，因此现有索引同样能被正确处理。
+- **Re-importing re-downloaded all images as `-1`, `-2` copies.** If a note was deleted but its images remained, re-importing created duplicate image files. Images are now reused when a file of the same name already exists.
+  **重新导入会把图片重复下载成 `-1`、`-2` 副本**：笔记被删但图片还在时，重导会产生重复图片文件。现在同名图片已存在则**直接复用**。
+
+---
+
 ## [1.0.9]
 
 ### Fixed / 修复
