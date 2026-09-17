@@ -237,6 +237,17 @@ const t = (key, ...args) => {
   return value !== undefined ? value : key;
 };
 
+// [本地增强] 正文行整理：小红书正文里常带「只有 tab / 空格」的伪空行与行尾空白。
+// 纯空白行归一成空行，连续 3 个以上换行压成 2 个，避免脏数据进入笔记。
+function normalizeContentLines(text) {
+  return String(text || "")
+    .split("\n")
+    .map((line) => (/^\s+$/.test(line) ? "" : line.replace(/\s+$/g, "")))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function createFieldId() {
   return `field-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
@@ -537,7 +548,10 @@ class XiaohongshuImporterPlugin extends Plugin {
       return vaultPath;
     }
 
-    return normalizePath(vaultPath);
+    // [本地增强] 强制写成库根绝对路径（以 / 开头）。
+    // 不带 / 会被 Markdown 当成相对当前笔记的路径，导致图片引不到。
+    const normalized = normalizePath(vaultPath);
+    return normalized.startsWith("/") ? normalized : `/${normalized}`;
   }
 
   buildPlaceholderContext({ title, source, date, videoUrl, note }) {
@@ -664,8 +678,8 @@ class XiaohongshuImporterPlugin extends Plugin {
           new Notice(t("noticeNoVideoUrl"));
         }
 
-        const cleanedContent = content.replace(/#\S+/g, "").trim();
-        markdown += `${cleanedContent.split("\n").join("\n")}\n\n`;
+        const cleanedContent = normalizeContentLines(content.replace(/#\S+/g, ""));
+        markdown += `${cleanedContent}\n\n`;
 
         const tags = this.extractTags(content);
         if (tags.length > 0) {

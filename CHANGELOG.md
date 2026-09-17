@@ -5,6 +5,22 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [1.0.6]
+
+### Fixed / 修复
+
+- **Image links were written as relative paths**, so they resolved against the note's own folder and could not be found. Image and cover links are now always written as vault-root absolute paths (`/folder/image.jpg`).
+  图片链接此前写成**相对路径**（`附件/XHS/xxx.jpg`），会被当作相对当前笔记目录解析而找不到图片。现在统一写成**库根绝对路径**（`/附件/XHS/xxx.jpg`）。
+- **Body text kept pseudo-blank lines made of tabs/spaces** from the Xiaohongshu source. Such lines are now normalized to true blank lines, trailing whitespace is stripped, and runs of 3+ newlines are collapsed to 2.
+  正文里来自小红书原文的**纯 tab/空格伪空行**现在会被归一成真正的空行，行尾空白被清除，连续 3 个以上换行压缩为 2 个。
+
+### Changed / 变更
+
+- Plugin `name` in `manifest.json` is now `xhs-importer-pro`, matching the plugin id.
+  `manifest.json` 里的插件名改为 `xhs-importer-pro`，与 id 一致。
+
+---
+
 ## [1.0.5]
 
 ### Added / 新增
