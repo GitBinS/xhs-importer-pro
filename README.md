@@ -66,7 +66,11 @@ tags:
 ---
 ```
 
-> **Keep the engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares`) rather than one merged string. Merged text cannot be sorted or aggregated by Bases/Dataview, and "which note is the outlier" is the first question you ask when mining a competitor note.
+> **Property names are free-form.** Obsidian lets you name a property anything you like, so you can rename any key above — including to CJK (this plugin's own fork uses `创建日期` / `发布日期` / `博主` / `笔记链接` / `点赞` / `收藏` / `评论` / `转发`). Two exceptions: leave `aliases` and `tags` alone, because they are Obsidian's built-in properties and the alias / tag systems key on those exact names.
+>
+> **Placeholder names must stay ASCII.** They are resolved by `/\{\{(\w+)\}\}/`, and JavaScript's `\w` does not cover CJK — a Chinese placeholder would silently stay in the note as literal `{{...}}`. For readability, the settings tab lists every placeholder with a short description instead.
+>
+> **Keep the engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares` or your own names) rather than one merged string. Merged text cannot be sorted or aggregated by Bases/Dataview, and "which note is the outlier" is the first question you ask when mining a competitor note.
 
 ---
 

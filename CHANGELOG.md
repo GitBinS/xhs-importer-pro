@@ -16,6 +16,10 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
   推荐的 frontmatter 配置现在把 **`type: raw` 写在首行** —— 这样导入的笔记才能进 Obsidian Bases 看板。本库的所有看板都靠 `type` 过滤，没有 `type` 的文件不进任何看板。
 - **Recommended frontmatter config now writes engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares`) instead of one merged `stats` string. A merged string cannot be sorted or aggregated by Bases/Dataview.
   推荐的 frontmatter 配置改为把互动数据写成**独立的数字字段**（`likes` / `saves` / `comments` / `shares`），不再合并成一串 `stats` 文本 —— 合并文本无法被 Bases / Dataview 排序或聚合。
+- **Recommended config: the remaining English keys are renamed to Chinese** — `created` → `创建日期`, `published` → `发布日期`, `author` → `博主`, `source` → `笔记链接`, so an imported note reads in Chinese throughout. Only `type` (the Bases filter anchor), `aliases` and `tags` (Obsidian built-ins) stay English — all three for technical reasons, not style.
+  推荐的配置把**其余英文键改为中文** —— `created` → `创建日期`、`published` → `发布日期`、`author` → `博主`、`source` → `笔记链接`，导入的笔记通篇可读。只保留 `type`（Bases 过滤锚点）、`aliases`、`tags`（Obsidian 内置属性）三个英文键，三者都是技术必需，不是风格取舍。
+- **Settings tab: the placeholder list is now a labelled list.** Previously three dense lines of `{{...}}` with no explanation — you could not tell that `{{collectedCount}}` means "collect count". Each placeholder now gets its own row with a short description, plus a line clarifying field name (written into the note) vs placeholder (data-source identifier only used inside a default value).
+  设置页的**占位符列表改为逐条带说明**。原先只是三行 `{{...}}` 堆砌，看不出 `{{collectedCount}}` 是"收藏数"。现在每个占位符单独一行并附中文说明，并加一句讲清「字段名（写进笔记）」与「占位符（只在默认值里用）」的区别。
 
 ### Fixed / 修复
 
@@ -24,8 +28,8 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ### Internal / 内部
 
-- `dev/verify.mjs` now calls the **real plugin methods** for the frontmatter rendering test instead of a hand-copied duplicate of the logic, runs fully offline, and exits non-zero on failure. Coverage grew from 9 to 28 assertions.
-  `dev/verify.mjs` 的 frontmatter 渲染测试改为调用**真实插件方法**（原先手抄了一份逻辑副本，等于在测自己），全程离线可跑，失败时返回非零退出码。断言数 9 → 28。
+- `dev/verify.mjs` now calls the **real plugin methods** for the frontmatter rendering test instead of a hand-copied duplicate of the logic, runs fully offline, and exits non-zero on failure. Coverage grew from 9 to 38 assertions, including a guard that every placeholder has a settings-tab description (so adding a placeholder without documenting it fails the test), and an assertion that pins the ASCII-only placeholder limitation.
+  `dev/verify.mjs` 的 frontmatter 渲染测试改为调用**真实插件方法**（原先手抄了一份逻辑副本，等于在测自己），全程离线可跑，失败时返回非零退出码。断言数 9 → 38，其中包含**「新增占位符但忘了写设置页说明」会直接测试失败**的守门断言，以及把「占位符只能是 ASCII」这条限制固化下来的断言。
 
 ---
 

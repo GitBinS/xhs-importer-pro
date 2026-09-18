@@ -52,21 +52,25 @@ frontmatter 配置示例：
 ---
 type: raw
 aliases:
-created: {{date}}
-published: {{publishDate}}
-author: {{author}}
-likes: {{likedCount}}
-saves: {{collectedCount}}
-comments: {{commentCount}}
-shares: {{shareCount}}
-source: {{source}}
+创建日期: {{date}}
+发布日期: {{publishDate}}
+博主: {{author}}
+笔记链接: {{source}}
+点赞: {{likedCount}}
+收藏: {{collectedCount}}
+评论: {{commentCount}}
+转发: {{shareCount}}
 tags:
   - 类型/摘录
   - 状态/待加工
 ---
 ```
 
-> **互动数据请用独立数字字段**（`likes` / `saves` / `comments` / `shares`），不要塞成一串文本。合并文本无法被 Bases / Dataview 排序或聚合，而「哪篇是异常爆款」是你挖对标笔记时第一个要回答的问题。
+> **字段名可以随意取**。Obsidian 允许属性名用任何字符（含中文），所以上面这些键你想改成什么都可以。只有两个**不能改**：`aliases` 与 `tags` —— 它们是 Obsidian 内置属性，别名系统和标签系统认的就是这两个名字。
+>
+> **占位符名必须保持英文**。插件用 `/\{\{(\w+)\}\}/` 匹配占位符，而 JavaScript 的 `\w` 不含中文 —— 写成中文占位符会**静默失效**，笔记里会原样留下 `{{...}}`。所以设置页改成用**中文说明**列出每个占位符，而不是改占位符名。
+>
+> **互动数据请用独立数字字段**，不要塞成一串文本。合并文本无法被 Bases / Dataview 排序或聚合，而「哪篇是异常爆款」是你挖对标笔记时第一个要回答的问题。
 
 ---
 

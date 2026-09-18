@@ -92,14 +92,14 @@ inst.settings = {
   frontmatterFields: [
     { key: 'type', value: 'raw', enabled: true, order: 0 },
     { key: 'aliases', value: '', enabled: true, order: 1 },
-    { key: 'created', value: '{{date}}', enabled: true, order: 2 },
-    { key: 'published', value: '{{publishDate}}', enabled: true, order: 3 },
-    { key: 'author', value: '{{author}}', enabled: true, order: 4 },
-    { key: 'likes', value: '{{likedCount}}', enabled: true, order: 5 },
-    { key: 'saves', value: '{{collectedCount}}', enabled: true, order: 6 },
-    { key: 'comments', value: '{{commentCount}}', enabled: true, order: 7 },
-    { key: 'shares', value: '{{shareCount}}', enabled: true, order: 8 },
-    { key: 'source', value: '{{source}}', enabled: true, order: 9 },
+    { key: '创建日期', value: '{{date}}', enabled: true, order: 2 },
+    { key: '发布日期', value: '{{publishDate}}', enabled: true, order: 3 },
+    { key: '博主', value: '{{author}}', enabled: true, order: 4 },
+    { key: '笔记链接', value: '{{source}}', enabled: true, order: 5 },
+    { key: '点赞', value: '{{likedCount}}', enabled: true, order: 6 },
+    { key: '收藏', value: '{{collectedCount}}', enabled: true, order: 7 },
+    { key: '评论', value: '{{commentCount}}', enabled: true, order: 8 },
+    { key: '转发', value: '{{shareCount}}', enabled: true, order: 9 },
     { key: 'tags', value: '- 类型/摘录\n- 状态/待加工', enabled: true, order: 10 },
     { key: '上级概念', value: '', enabled: true, order: 11 },
   ],
@@ -127,13 +127,21 @@ const rcheck = (name, cond) => {
   console.log(`  ${cond ? '✅' : '❌'} ${name}`);
 };
 rcheck('type: raw 写在首行', rendered.startsWith('---\ntype: raw'));
-rcheck('likes 有值', rendered.includes('likes: 1252'));
-rcheck('saves 有值', rendered.includes('saves: 708'));
-rcheck('comments 有值', rendered.includes('comments: 293'));
-rcheck('shares 有值', rendered.includes('shares: 51'));
-rcheck('published 格式化正确', rendered.includes('published: 2026-09-08'));
-rcheck('author 正确', rendered.includes('author: 十月的星星'));
+rcheck('创建日期 有值', rendered.includes('创建日期: 2026-09-18'));
+rcheck('发布日期 格式化正确', rendered.includes('发布日期: 2026-09-08'));
+rcheck('博主 正确', rendered.includes('博主: 十月的星星'));
+rcheck('笔记链接 有值', rendered.includes('笔记链接: https://xhslink.cn/o/xxxx'));
+rcheck('点赞 有值', rendered.includes('点赞: 1252'));
+rcheck('收藏 有值', rendered.includes('收藏: 708'));
+rcheck('评论 有值', rendered.includes('评论: 293'));
+rcheck('转发 有值', rendered.includes('转发: 51'));
+rcheck('中文键不加引号（YAML 合法）', !rendered.includes('"创建日期"') && !rendered.includes("'点赞'"));
 rcheck('tags 多行缩进正确', rendered.includes('tags:\n  - 类型/摘录\n  - 状态/待加工'));
+// 守门：除 Obsidian 内置（aliases/tags）与看板锚点（type）外，不应再有英文键
+rcheck(
+  '英文键已清空（仅剩 type / aliases / tags）',
+  !/^(created|published|author|source|likes|saves|comments|shares):/m.test(rendered),
+);
 
 // 数据缺失的边界：不能出现 undefined，也不能伪装成 0
 const edge = Object.create(Plugin.prototype);
@@ -145,24 +153,38 @@ const edgeOut = edge.buildFrontmatter(
   }),
 );
 rcheck('缺失计数不出现 undefined', !edgeOut.includes('undefined'));
-rcheck('缺失计数渲染为空键（不是 0）', /^likes:$/m.test(edgeOut) && /^saves:$/m.test(edgeOut));
+rcheck('缺失计数渲染为空键（不是 0）', /^点赞:$/m.test(edgeOut) && /^收藏:$/m.test(edgeOut));
 
-// 中文属性名：本库的实际配置（key 由用户自定义，Obsidian 官方允许任意名称）
-// 需确认中文 key 输出后仍是合法 YAML（不加引号、冒号后有空格）
-const cjk = Object.create(Plugin.prototype);
-cjk.settings = {
-  frontmatterFields: [
-    { key: '点赞', value: '{{likedCount}}', enabled: true, order: 0 },
-    { key: '收藏', value: '{{collectedCount}}', enabled: true, order: 1 },
-    { key: '评论', value: '{{commentCount}}', enabled: true, order: 2 },
-    { key: '转发', value: '{{shareCount}}', enabled: true, order: 3 },
-  ],
+// 已知限制（固化为测试）：占位符名必须保持 ASCII。
+// replacePlaceholders() 用 /\{\{(\w+)\}\}/，JS 的 \w 只含 [A-Za-z0-9_]，
+// 中文占位符会**静默不替换**、原样留在笔记里。
+// 若哪天把正则放宽到 [^}]+，这条会失败 —— 那时才说明中文占位符可用了。
+const ph = Object.create(Plugin.prototype);
+ph.settings = {
+  frontmatterFields: [{ key: '点赞', value: '{{点赞数}}', enabled: true, order: 0 }],
 };
-const cjkOut = cjk.buildFrontmatter(ctx);
-rcheck('中文键渲染正确', cjkOut.includes('点赞: 1252') && cjkOut.includes('收藏: 708'));
-rcheck('中文键不加引号（YAML 合法）', !cjkOut.includes('"点赞"') && !cjkOut.includes("'点赞'"));
+rcheck('中文占位符不被替换（故占位符保持英文）', ph.buildFrontmatter(ctx).includes('{{点赞数}}'));
+ph.settings.frontmatterFields = [{ key: '点赞', value: '{{likedCount}}', enabled: true, order: 0 }];
+rcheck('英文占位符正常替换（对照）', ph.buildFrontmatter(ctx).includes('点赞: 1252'));
 
 console.log(`\n渲染测试: ${rpass} 通过 / ${rfail} 失败`);
+
+// —— 设置页占位符说明表：与 buildPlaceholderContext 逐一对齐 ——
+// 守门作用：新增占位符却忘了在设置页写说明时，这里会失败。
+const ctxKeys = Object.keys(ctx);
+const docNames = T.PLACEHOLDER_DOCS.map(([n]) => n.replace(/\{\{|\}\}/g, ''));
+const undocumented = ctxKeys.filter((k) => !docNames.includes(k));
+const stale = docNames.filter((k) => !ctxKeys.includes(k));
+let dpass = 0, dfail = 0;
+const dcheck = (name, cond, detail) => {
+  cond ? dpass++ : dfail++;
+  console.log(`  ${cond ? '✅' : '❌'} ${name}${cond ? '' : ` → ${detail}`}`);
+};
+console.log('\n=== 设置页占位符说明表 ===');
+dcheck(`全部占位符都有说明（共 ${ctxKeys.length} 个）`, undocumented.length === 0, `缺说明: ${undocumented.join(', ')}`);
+dcheck('没有过期的说明项', stale.length === 0, `已失效: ${stale.join(', ')}`);
+dcheck('说明表非空且无重复', T.PLACEHOLDER_DOCS.length === ctxKeys.length && new Set(docNames).size === docNames.length, `表内 ${T.PLACEHOLDER_DOCS.length} 项`);
+console.log(`\n说明表检查: ${dpass} 通过 / ${dfail} 失败`);
 
 // —— 可选：读库内真实配置做一次对照（跨设备无该路径时自动跳过）——
 const VAULT_CFG = 'E:/第二大脑/.obsidian/plugins/xhs-importer-pro/data.json';
@@ -171,12 +193,17 @@ try {
     const cfg = JSON.parse(fs.readFileSync(VAULT_CFG, 'utf8'));
     const keys = inst.normalizeFrontmatterFields(cfg.frontmatterFields).map((f) => f.key);
     console.log('\n库内实际配置字段:', keys.join(', '));
-    const enSplit = ['likes', 'saves', 'comments'].every((k) => keys.includes(k));
-    const zhSplit = ['点赞', '收藏', '评论'].every((k) => keys.includes(k));
+    const countOk = ['点赞', '收藏', '评论', '转发'].every((k) => keys.includes(k));
+    const nameOk = ['创建日期', '发布日期', '博主', '笔记链接'].every((k) => keys.includes(k));
     const merged = keys.includes('stats') || keys.includes('统计');
-    // 键名可由用户自定义（中/英均可），所以两种命名都要认；只把"合并成一条"判为需更新
-    const ok = (enSplit || zhSplit) && !merged;
-    console.log(`  ${ok ? '✅' : '⚠️'} 计数已拆为独立字段（${zhSplit ? '中文命名' : enSplit ? '英文命名' : '未检出'}）${ok ? '' : ' —— 可能仍在使用合并的 stats，建议在插件设置页更新'}`);
+    // type / aliases / tags 是必需保留的英文键（看板 filter 锚点 + Obsidian 内置属性）
+    const leftovers = ['created', 'published', 'author', 'source', 'likes', 'saves', 'comments', 'shares']
+      .filter((k) => keys.includes(k));
+    console.log(`  ${countOk && !merged ? '✅' : '⚠️'} 互动计数为 4 个独立中文键（点赞/收藏/评论/转发）`);
+    console.log(`  ${nameOk ? '✅' : '⚠️'} 日期/博主/链接已中文化（创建日期 / 发布日期 / 博主 / 笔记链接）`);
+    console.log(
+      `  ${leftovers.length === 0 ? '✅' : '⚠️'} 英文键残留: ${leftovers.length ? leftovers.join(', ') : '无（type/aliases/tags 属必需保留）'}`,
+    );
   } else {
     console.log('\n（未找到库内插件配置，跳过对照）');
   }
@@ -184,6 +211,6 @@ try {
   console.log('\n（读库内配置失败，跳过:', e.message + '）');
 }
 
-const totalFail = fail + rfail;
+const totalFail = fail + rfail + dfail;
 process.exitCode = totalFail > 0 ? 1 : 0;
-console.log(`\n总计: 通过 ${pass + rpass} / 失败 ${totalFail}`);
+console.log(`\n总计: 通过 ${pass + rpass + dpass} / 失败 ${totalFail}`);

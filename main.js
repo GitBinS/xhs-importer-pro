@@ -199,6 +199,48 @@ function detectLangIsZh() {
 
 const IS_ZH = detectLangIsZh();
 
+// [本地增强] 占位符逐条中文说明：设置页不再只给一串 {{...}}，否则看不出哪个对应哪个。
+// ⚠️ 占位符名必须保持 ASCII：replacePlaceholders() 用 /\{\{(\w+)\}\}/ 匹配，
+// 而 JS 的 \w 只含 [A-Za-z0-9_]，中文占位符会**静默不替换**（原样留在笔记里）。
+// 要让界面可读，正确做法是加说明，不是改占位符名。
+const PLACEHOLDER_DOCS = IS_ZH
+  ? [
+      ["{{date}}", "导入日期（抓取当天）"],
+      ["{{publishDate}}", "笔记发布时间"],
+      ["{{title}}", "笔记标题"],
+      ["{{author}}", "博主昵称"],
+      ["{{authorId}}", "博主用户 ID"],
+      ["{{authorUrl}}", "博主主页链接"],
+      ["{{source}}", "笔记链接"],
+      ["{{likedCount}}", "点赞数"],
+      ["{{collectedCount}}", "收藏数"],
+      ["{{commentCount}}", "评论数"],
+      ["{{shareCount}}", "转发数"],
+      ["{{noteId}}", "笔记 ID"],
+      ["{{noteType}}", "笔记类型（normal 图文 / video 视频）"],
+      ["{{noteTags}}", "话题标签（空格分隔）"],
+      ["{{ipLocation}}", "博主 IP 属地"],
+      ["{{videoUrl}}", "视频直链"],
+    ]
+  : [
+      ["{{date}}", "Import date"],
+      ["{{publishDate}}", "Note publish date"],
+      ["{{title}}", "Note title"],
+      ["{{author}}", "Author nickname"],
+      ["{{authorId}}", "Author user ID"],
+      ["{{authorUrl}}", "Author profile URL"],
+      ["{{source}}", "Note URL"],
+      ["{{likedCount}}", "Like count"],
+      ["{{collectedCount}}", "Collect count"],
+      ["{{commentCount}}", "Comment count"],
+      ["{{shareCount}}", "Share count"],
+      ["{{noteId}}", "Note ID"],
+      ["{{noteType}}", "Note type (normal / video)"],
+      ["{{noteTags}}", "Hashtags (space separated)"],
+      ["{{ipLocation}}", "Author IP location"],
+      ["{{videoUrl}}", "Video direct URL"],
+    ];
+
 const I18N = {
   zh: {
     noticeNoUrl: "没在文本里找到有效的小红书链接。",
@@ -229,7 +271,9 @@ const I18N = {
     setDownloadName: "下载图片",
     setDownloadDesc: "开启后，笔记图片会下载到本地库。视频仍保留远程链接。",
     setFrontmatterHeading: "Frontmatter 字段",
-    setPlaceholdersHint: "可用占位符：",
+    setPlaceholdersHint: "可用占位符（写在字段的「默认值」里，不会出现在笔记中）：",
+    setFieldsNote:
+      "字段名 = 写进笔记顶部的属性名（改它只改笔记里显示什么，不影响抓取）；占位符 = 数据来源标识。",
     setFieldName: (n) => `字段 ${n}`,
     setFieldDesc: "可编辑字段名、启用状态与排序。",
     setFieldKeyPlaceholder: "字段名",
@@ -273,7 +317,10 @@ const I18N = {
     setDownloadDesc:
       "If enabled, note images are downloaded to the local vault. Videos remain remote links.",
     setFrontmatterHeading: "Frontmatter Fields",
-    setPlaceholdersHint: "Supported placeholders:",
+    setPlaceholdersHint:
+      "Available placeholders (use inside a field's default value; they never appear in the note):",
+    setFieldsNote:
+      "The field name is the property written to the top of the note — renaming it changes only what you see, not what is scraped.",
     setFieldName: (n) => `Field ${n}`,
     setFieldDesc: "Edit the field key, enable state, and order.",
     setFieldKeyPlaceholder: "Field key",
@@ -1085,22 +1132,19 @@ class XiaohongshuSettingTab extends PluginSettingTab {
 
     containerEl.createEl("h3", { text: t("setFrontmatterHeading") });
     containerEl.createEl("p", {
+      text: t("setFieldsNote"),
+      cls: "xhs-frontmatter-hint",
+    });
+    containerEl.createEl("p", {
       text: t("setPlaceholdersHint"),
       cls: "xhs-frontmatter-hint",
     });
-    containerEl.createEl("p", {
-      text:
-        "{{date}}, {{title}}, {{source}}, {{videoUrl}}, {{noteId}}, {{noteType}}, {{noteTags}}, " +
-        "{{publishDate}}, {{ipLocation}}",
-      cls: "xhs-frontmatter-hint",
-    });
-    containerEl.createEl("p", {
-      text: "{{author}}, {{authorId}}, {{authorUrl}}",
-      cls: "xhs-frontmatter-hint",
-    });
-    containerEl.createEl("p", {
-      text: "{{likedCount}}, {{collectedCount}}, {{commentCount}}, {{shareCount}}",
-      cls: "xhs-frontmatter-hint",
+    // [本地增强] 占位符逐条列出 + 中文说明（取代原先三行 {{...}} 堆砌）
+    const placeholderList = containerEl.createEl("ul", { cls: "xhs-placeholder-list" });
+    PLACEHOLDER_DOCS.forEach(([name, desc]) => {
+      const item = placeholderList.createEl("li");
+      item.createEl("code", { text: name });
+      item.createSpan({ text: ` ${desc}` });
     });
 
     const fields = this.plugin.normalizeFrontmatterFields(this.plugin.settings.frontmatterFields);
@@ -1297,6 +1341,8 @@ module.exports = {
     extractAllXHSURLs,
     normalizeContentLines,
     BATCH_MAX_PER_RUN,
+    // 设置页的占位符说明表（测试用：确保新增占位符时不会漏写说明）
+    PLACEHOLDER_DOCS,
   },
 };
 
