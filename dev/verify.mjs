@@ -147,6 +147,21 @@ const edgeOut = edge.buildFrontmatter(
 rcheck('缺失计数不出现 undefined', !edgeOut.includes('undefined'));
 rcheck('缺失计数渲染为空键（不是 0）', /^likes:$/m.test(edgeOut) && /^saves:$/m.test(edgeOut));
 
+// 中文属性名：本库的实际配置（key 由用户自定义，Obsidian 官方允许任意名称）
+// 需确认中文 key 输出后仍是合法 YAML（不加引号、冒号后有空格）
+const cjk = Object.create(Plugin.prototype);
+cjk.settings = {
+  frontmatterFields: [
+    { key: '点赞', value: '{{likedCount}}', enabled: true, order: 0 },
+    { key: '收藏', value: '{{collectedCount}}', enabled: true, order: 1 },
+    { key: '评论', value: '{{commentCount}}', enabled: true, order: 2 },
+    { key: '转发', value: '{{shareCount}}', enabled: true, order: 3 },
+  ],
+};
+const cjkOut = cjk.buildFrontmatter(ctx);
+rcheck('中文键渲染正确', cjkOut.includes('点赞: 1252') && cjkOut.includes('收藏: 708'));
+rcheck('中文键不加引号（YAML 合法）', !cjkOut.includes('"点赞"') && !cjkOut.includes("'点赞'"));
+
 console.log(`\n渲染测试: ${rpass} 通过 / ${rfail} 失败`);
 
 // —— 可选：读库内真实配置做一次对照（跨设备无该路径时自动跳过）——
@@ -156,8 +171,12 @@ try {
     const cfg = JSON.parse(fs.readFileSync(VAULT_CFG, 'utf8'));
     const keys = inst.normalizeFrontmatterFields(cfg.frontmatterFields).map((f) => f.key);
     console.log('\n库内实际配置字段:', keys.join(', '));
-    const ok = keys.includes('likes') && keys.includes('saves') && keys.includes('comments');
-    console.log(`  ${ok ? '✅' : '⚠️'} 计数已拆为独立字段${ok ? '' : ' —— 仍在使用合并的 stats，建议在插件设置页更新'}`);
+    const enSplit = ['likes', 'saves', 'comments'].every((k) => keys.includes(k));
+    const zhSplit = ['点赞', '收藏', '评论'].every((k) => keys.includes(k));
+    const merged = keys.includes('stats') || keys.includes('统计');
+    // 键名可由用户自定义（中/英均可），所以两种命名都要认；只把"合并成一条"判为需更新
+    const ok = (enSplit || zhSplit) && !merged;
+    console.log(`  ${ok ? '✅' : '⚠️'} 计数已拆为独立字段（${zhSplit ? '中文命名' : enSplit ? '英文命名' : '未检出'}）${ok ? '' : ' —— 可能仍在使用合并的 stats，建议在插件设置页更新'}`);
   } else {
     console.log('\n（未找到库内插件配置，跳过对照）');
   }
