@@ -50,6 +50,9 @@ console.log('--- 1. formatPublishDate ---');
 check('时间戳 → 日期', T.formatPublishDate(1789296677000), '2026-09-13');
 check('空值', T.formatPublishDate(null), '');
 check('垃圾值', T.formatPublishDate('abc'), '');
+// 时区回归：凌晨必须算当天。曾用 new Date().toISOString()（UTC）算「创建日期」，
+// 东八区 00:00–08:00 导入会写成前一天。这条用本地构造的 00:43，与机器时区无关。
+check('凌晨 00:43 算作当天（不是前一天）', T.formatPublishDate(new Date(2026, 8, 19, 0, 43).getTime()), '2026-09-19');
 
 console.log('\n--- 2. normalizeCount（缺失不能是 0，否则污染看板排序）---');
 check('字符串数字', T.normalizeCount('265'), '265');
@@ -80,6 +83,11 @@ console.log('\n--- 5. 正文清理 ---');
 check('tab 伪空行', T.normalizeContentLines('a\n\t\nb'), 'a\n\nb');
 check('行尾空白', T.normalizeContentLines('a   \nb'), 'a\nb');
 check('连续空行压缩', T.normalizeContentLines('a\n\n\n\n\nb'), 'a\n\nb');
+// 小红书用不可见字符伪造空行，其中 U+200B / U+3164 不属 \s → /^\s+$/ 判不出来
+check('U+3164 韩文填充符（ㅤ）伪空行', T.normalizeContentLines('a\n\u3164\nb'), 'a\n\nb');
+check('U+200B 零宽空格伪空行', T.normalizeContentLines('a\n\u200b\nb'), 'a\n\nb');
+check('行尾不可见字符被清掉', T.normalizeContentLines('a\u3164\nb'), 'a\nb');
+check('行内不可见字符保留（不误删正文）', T.normalizeContentLines('a\u200bb'), 'a\u200bb');
 
 console.log(`\n单元测试: ${pass} 通过 / ${fail} 失败\n`);
 

@@ -346,10 +346,24 @@ const t = (key, ...args) => {
 
 // [本地增强] 正文行整理：小红书正文里常带「只有 tab / 空格」的伪空行与行尾空白。
 // 纯空白行归一成空行，连续 3 个以上换行压成 2 个，避免脏数据进入笔记。
+// [正文清理] 小红书正文用**不可见字符**伪造空行。主流三种变体都处理掉：
+//   ① 纯 tab/空格        → 已被 \s 覆盖
+//   ② U+200B 零宽空格 ③ U+200C/D 零宽连接符 ④ U+3164 韩文填充符（"ㅤ"）
+// ②③④ **不属于 \s**，所以 /^\s+$/ 判不出来 → 会以"看不见的空行"残留在笔记正文里。
+const INVISIBLE_CHARS = /[\u200b\u200c\u200d\u3164]/g;
+const TRAILING_INVISIBLE = /[\s\u200b\u200c\u200d\u3164]+$/;
+
 function normalizeContentLines(text) {
   return String(text || "")
     .split("\n")
-    .map((line) => (/^\s+$/.test(line) ? "" : line.replace(/\s+$/g, "")))
+    .map((line) => {
+      // 去掉不可见字符后为空 → 视为空行（否则会留下"看不见的空行"）
+      if (line.replace(INVISIBLE_CHARS, "").trim() === "") {
+        return "";
+      }
+      // 有内容的行：只清行尾空白与不可见字符，不动行内的
+      return line.replace(TRAILING_INVISIBLE, "");
+    })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -451,8 +465,18 @@ class XiaohongshuImporterPlugin extends Plugin {
         return;
       }
 
+      // [修正] 单条导入也走同一套去重索引。
+      // 原先单条既不读也不写索引，导致两个后果：
+      //   ① 单条导入过的笔记没有去重保护 —— 再导一次会生成「标题-1.md」重复副本
+      //   ② 批量导入也认不出它（索引里根本没有这条）
+      // 现在与批量完全一致：读索引 → 校验笔记是否仍在仓库 → 写回。
       if (urls.length === 1) {
-        await this.importXHSNote(urls[0], result.downloadMedia);
+        const index = await this.loadImportIndex();
+        const single = await this.importXHSNote(urls[0], result.downloadMedia, { index });
+        await this.saveImportIndex(index);
+        if (single?.skipped) {
+          new Notice(t("noticeDuplicate", single.title));
+        }
         return;
       }
 
@@ -742,7 +766,12 @@ class XiaohongshuImporterPlugin extends Plugin {
       const images = this.extractImages(html, note);
       const content = this.extractContent(html, note);
       const isVideo = this.isVideoNote(html, note);
-      const today = new Date().toISOString().split("T")[0];
+      // [修正] 用**本地日期**，不用 UTC。
+      // 原写法 `new Date().toISOString().split("T")[0]` 取的是 UTC 日期：
+      // 东八区 00:00–08:00 之间导入，会把「创建日期」写成**前一天**
+      // （实测：09-19 00:43 导入 → 写成 2026-09-18）。
+      // 复用 formatPublishDate()，与「发布日期」共用同一套本地日期逻辑，避免两套口径。
+      const today = formatPublishDate(Date.now());
 
       const noteFolder = (this.settings.noteFolder || "").trim();
       const imageFolder = (this.settings.imageFolder || "").trim();

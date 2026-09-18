@@ -26,10 +26,19 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 - **Missing interaction counts are no longer rendered as `0`.** `normalizeCount()` used to coerce `undefined` / `""` to `"0"`, which — once counts became sortable fields — made notes with unknown data look like notes with zero engagement and would skew averages. Missing values now render as an empty key, matching the convention used by hand-written cards.
   互动数据缺失时**不再渲染成 `0`**。`normalizeCount()` 原先把 `undefined` / `""` 强转成 `"0"`；在计数变成可排序字段之后，这会让"数据未知"的笔记被当成 0 赞参与排序并拉低均值。现在缺失一律渲染为空键，与手写卡片的写法一致。
 
+### Fixed / 修复
+
+- **`创建日期` no longer uses the UTC date.** It was built from `new Date().toISOString()`, so importing between 00:00 and 08:00 in UTC+8 wrote **the previous day** (observed: a 09-19 00:43 import recorded 2026-09-18). It now reuses the same local-date formatter as `发布日期`, so both dates follow one convention instead of two.
+  「创建日期」**不再用 UTC 日期**。原写法取 `new Date().toISOString()`，东八区 00:00–08:00 之间导入会写成**前一天**（实测：09-19 00:43 导入记为 2026-09-18）。现在复用与「发布日期」相同的本地日期格式器，两个日期同一套口径。
+- **Single-link imports now use the same deduplication index as batch imports.** They previously neither read nor wrote it, with two consequences: a note imported one at a time had no duplicate protection (re-importing it silently produced a `title-1.md` copy), and batch imports could not recognise it either. Both paths now load the index, verify the note still exists in the vault, and write back.
+  **单条导入现在与批量共用同一套去重索引**。原先单条既不读也不写索引，导致：单条导入过的笔记没有去重保护（重导会静默生成 `标题-1.md` 副本），批量导入也认不出它。现在两条路径都读索引、校验笔记是否仍在仓库、写回。
+- **Body cleanup now also removes invisible pseudo-blank lines.** Xiaohongshu pads the body with invisible characters. Tabs and spaces were already handled, but zero-width space (U+200B), zero-width joiners (U+200C/D) and Hangul filler (U+3164, the "ㅤ" character) are **not matched by `\s`**, so `/^\s+$/` could not detect them and they survived as an invisible blank line. All four variants are now normalised to a real blank line; invisible characters inside a content line are left untouched.
+  正文清理**现在也清除"看不见的空行"**。小红书正文用不可见字符补空行：tab/空格此前已处理，但零宽空格（U+200B）、零宽连接符（U+200C/D）与韩文填充符（U+3164，即"ㅤ"）**不属 `\s`**，`/^\s+$/` 判不出来 → 会以"看不见的空行"残留。现在四种变体统一归一成真空行；**行内的不可见字符保持不动**。
+
 ### Internal / 内部
 
-- `dev/verify.mjs` now calls the **real plugin methods** for the frontmatter rendering test instead of a hand-copied duplicate of the logic, runs fully offline, and exits non-zero on failure. Coverage grew from 9 to 38 assertions, including a guard that every placeholder has a settings-tab description (so adding a placeholder without documenting it fails the test), and an assertion that pins the ASCII-only placeholder limitation.
-  `dev/verify.mjs` 的 frontmatter 渲染测试改为调用**真实插件方法**（原先手抄了一份逻辑副本，等于在测自己），全程离线可跑，失败时返回非零退出码。断言数 9 → 38，其中包含**「新增占位符但忘了写设置页说明」会直接测试失败**的守门断言，以及把「占位符只能是 ASCII」这条限制固化下来的断言。
+- `dev/verify.mjs` now calls the **real plugin methods** for the frontmatter rendering test instead of a hand-copied duplicate of the logic, runs fully offline, and exits non-zero on failure. Coverage grew from 9 to 43 assertions, including a guard that every placeholder has a settings-tab description (so adding a placeholder without documenting it fails the test), an assertion that pins the ASCII-only placeholder limitation, a timezone regression test for `创建日期` (locally constructed 00:43, so it fails on any machine if the implementation goes back to UTC), and assertions for the four pseudo-blank-line variants.
+  `dev/verify.mjs` 的 frontmatter 渲染测试改为调用**真实插件方法**（原先手抄了一份逻辑副本，等于在测自己），全程离线可跑，失败时返回非零退出码。断言数 9 → **43**，其中包含**「新增占位符但忘了写设置页说明」会直接测试失败**的守门断言、把「占位符只能是 ASCII」这条限制固化下来的断言、`创建日期` 的**时区回归测试**（用本地构造的 00:43，任何机器上只要退回 UTC 实现就会失败），以及四种"看不见的空行"的断言。
 
 ---
 

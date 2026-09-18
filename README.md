@@ -12,7 +12,7 @@ Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown 
 |---|---|
 | **Import from share link** | Paste a Xiaohongshu share text or link to import a note. Supports `xhslink.com` short links and App / web share links. |
 | **Batch import** | Paste many share links at once — all links in the text are detected and imported in order, with a per-run limit of 20 and random throttling between requests. |
-| **Duplicate detection** | Notes are matched by note ID against a persistent index, so re-importing the same note is skipped rather than duplicated. |
+| **Duplicate detection** | Notes are matched by note ID against a persistent index, so re-importing the same note is skipped rather than duplicated. A note counts as duplicate only while it still exists in the vault — delete it and you can import it again. Applies to single-link and batch imports alike. |
 | **Full body text** | Complete note body, with hashtags separated out and cleaned. |
 | **All images downloaded** | Images are saved into your local vault, so they stay readable offline and survive note deletion. |
 | **Engagement metrics** | Like / save / comment / share counts written to frontmatter — useful for filtering for high-performing notes. |
