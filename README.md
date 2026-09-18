@@ -46,31 +46,31 @@ Use these in any frontmatter field value:
 | `{{noteTags}}` | Hashtags, space-separated |
 | `{{noteId}}` | Xiaohongshu note ID |
 
-Example frontmatter setup:
+Example frontmatter setup — this is what the plugin's default configuration produces:
 
 ```yaml
 ---
 type: raw
 aliases:
-created: {{date}}
-published: {{publishDate}}
-author: {{author}}
-likes: {{likedCount}}
-saves: {{collectedCount}}
-comments: {{commentCount}}
-shares: {{shareCount}}
-source: {{source}}
+创建日期: {{date}}
+发布日期: {{publishDate}}
+博主: {{author}}
+笔记链接: {{source}}
+点赞: {{likedCount}}
+收藏: {{collectedCount}}
+评论: {{commentCount}}
+转发: {{shareCount}}
 tags:
   - type/excerpt
   - status/to-process
 ---
 ```
 
-> **Property names are free-form.** Obsidian lets you name a property anything you like, so you can rename any key above — including to CJK (this plugin's own fork uses `创建日期` / `发布日期` / `博主` / `笔记链接` / `点赞` / `收藏` / `评论` / `转发`). Two exceptions: leave `aliases` and `tags` alone, because they are Obsidian's built-in properties and the alias / tag systems key on those exact names.
+> **The keys shown are Chinese, but the names are entirely yours to change.** Obsidian lets you name a property anything you like — the English equivalents (`created` / `published` / `author` / `source` / `likes` / `saves` / `comments` / `shares`) work exactly the same way. Two keys must stay as they are: `aliases` and `tags`, because they are Obsidian's built-in properties and the alias / tag systems key on those exact names. (`type` is only English by convention here — it is what the sample vault's Bases filters match on.)
 >
-> **Placeholder names must stay ASCII.** They are resolved by `/\{\{(\w+)\}\}/`, and JavaScript's `\w` does not cover CJK — a Chinese placeholder would silently stay in the note as literal `{{...}}`. For readability, the settings tab lists every placeholder with a short description instead.
+> **Placeholder names must stay ASCII.** They are resolved by `/\{\{(\w+)\}\}/`, and JavaScript's `\w` does not cover CJK characters — a Chinese placeholder would silently stay in the note as literal `{{...}}`. For readability, the settings tab lists every placeholder with a short description instead.
 >
-> **Keep the engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares` or your own names) rather than one merged string. Merged text cannot be sorted or aggregated by Bases/Dataview, and "which note is the outlier" is the first question you ask when mining a competitor note.
+> **Keep the engagement counts as separate numeric fields** rather than one merged string. Merged text cannot be sorted or aggregated by Bases/Dataview, and "which note is the outlier" is the first question you ask when mining a competitor note.
 
 ---
 
