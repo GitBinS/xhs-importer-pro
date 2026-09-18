@@ -5,10 +5,10 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
-## [Unreleased] / 未发布
+## [1.0.13] — 2026-09-19
 
-> Accumulating changes. Per the project convention, tags and releases are created in batches — not once per fix.
-> 改动累积中。按项目约定，tag 与 release 攒批发布，不做「一修一版」。
+> 本版为 1.0.12 之后的累计改动（按项目约定，tag 与 release 攒批发布，不做「一修一版」）。
+> Cumulative changes since 1.0.12. By project convention, tags and releases are batched rather than shipped once per fix.
 
 ### Changed / 变更
 
