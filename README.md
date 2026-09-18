@@ -54,13 +54,18 @@ aliases:
 created: {{date}}
 published: {{publishDate}}
 author: {{author}}
-stats: Liked {{likedCount}} · Saved {{collectedCount}} · Comments {{commentCount}}
+likes: {{likedCount}}
+saves: {{collectedCount}}
+comments: {{commentCount}}
+shares: {{shareCount}}
 source: {{source}}
 tags:
   - type/excerpt
   - status/to-process
 ---
 ```
+
+> **Keep the engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares`) rather than one merged string. Merged text cannot be sorted or aggregated by Bases/Dataview, and "which note is the outlier" is the first question you ask when mining a competitor note.
 
 ---
 

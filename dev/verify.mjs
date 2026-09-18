@@ -1,7 +1,11 @@
-// 验证改造后的 xhs-importer：单元测试 + 端到端 frontmatter 渲染
+// 回归测试：单元测试 + frontmatter 渲染（调用真实插件方法，不手抄逻辑）
+//
+// 用法：cd xhs-importer-pro && node dev/verify.mjs
+// 改完 main.js 必跑。失败时退出码为 1。
 import Module from 'node:module';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 
 const require = createRequire(import.meta.url);
 
@@ -29,6 +33,7 @@ Module._load = function (request, ...rest) {
 const MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
 const mod = require(MAIN);
 const T = mod.__test;
+const Plugin = mod.default;
 
 console.log('=== 加载成功，导出函数:', Object.keys(T).join(', '), '\n');
 
@@ -46,10 +51,12 @@ check('时间戳 → 日期', T.formatPublishDate(1789296677000), '2026-09-13');
 check('空值', T.formatPublishDate(null), '');
 check('垃圾值', T.formatPublishDate('abc'), '');
 
-console.log('\n--- 2. normalizeCount ---');
+console.log('\n--- 2. normalizeCount（缺失不能是 0，否则污染看板排序）---');
 check('字符串数字', T.normalizeCount('265'), '265');
-check('undefined', T.normalizeCount(undefined), '0');
-check('空串', T.normalizeCount(''), '0');
+check('真实零保留', T.normalizeCount('0'), '0');
+check('undefined → 空', T.normalizeCount(undefined), '');
+check('空串 → 空', T.normalizeCount(''), '');
+check('null → 空', T.normalizeCount(null), '');
 
 console.log('\n--- 3. sanitizeFilenamePreserveEmoji ---');
 const emojiTitle = '董姐太🐮了；昏迷式睡了14个小时，太爽了❗';
@@ -59,73 +66,103 @@ console.log(`       原文字符数: ${Array.from(emojiTitle).length} / 结果: 
 check('非法字符被替换', T.sanitizeFilenamePreserveEmoji('a<b>c:d/e'), 'a-b-c-d-e');
 check('emoji 不被截断', Array.from(T.sanitizeFilenamePreserveEmoji('🎉'.repeat(60))).length, 50);
 
+console.log('\n--- 4. 链接提取 ---');
+const L1 = 'https://www.xiaohongshu.com/discovery/item/6aa000bc000000002b00194b?xsec_source=app_share&xsec_token=AAA=';
+const L2 = 'https://www.xiaohongshu.com/discovery/item/6aa6802500000000280001a3?xsec_source=pc_share&xsec_token=BBB=';
+const S1 = 'https://xhslink.com/a/AbCdEf';
+check('长链+短链混合', T.extractAllXHSURLs(`看看${L1} 还有 ${S1} 很好`).length, 2);
+check('两条长链', T.extractAllXHSURLs(`${L1}\n${L2}`).length, 2);
+check('同链去重', T.extractAllXHSURLs(`${L1} ${L1} ${L2}`).length, 2);
+check('非小红书域名忽略', T.extractAllXHSURLs('https://www.baidu.com/abc').length, 0);
+check('空文本', T.extractAllXHSURLs('').length, 0);
+
+console.log('\n--- 5. 正文清理 ---');
+check('tab 伪空行', T.normalizeContentLines('a\n\t\nb'), 'a\n\nb');
+check('行尾空白', T.normalizeContentLines('a   \nb'), 'a\nb');
+check('连续空行压缩', T.normalizeContentLines('a\n\n\n\n\nb'), 'a\n\nb');
+
 console.log(`\n单元测试: ${pass} 通过 / ${fail} 失败\n`);
 
-// —— 端到端：抓真实笔记 → 渲染 frontmatter ——
-const URL_SHARE = 'https://www.xiaohongshu.com/discovery/item/6aa6802500000000280001a3?source=webshare&xhsshare=pc_web&xsec_token=ABwY4fWUde15BoS_WyRmlJTkLsRQddgErjXb9LRwpDOII=&xsec_source=pc_share';
+// —— 渲染测试：调用**真实插件方法**（不是手抄的副本），离线可跑 ——
+console.log('=== frontmatter 渲染（真实插件方法 / 固定测试配置）===');
 
-const HEADERS = T.XHS_REQUEST_HEADERS;
+const inst = Object.create(Plugin.prototype);
+// 固定测试配置：证明占位符 → 字段 的映射生效，不依赖库内 data.json
+inst.settings = {
+  frontmatterFields: [
+    { key: 'aliases', value: '', enabled: true, order: 0 },
+    { key: 'created', value: '{{date}}', enabled: true, order: 1 },
+    { key: 'published', value: '{{publishDate}}', enabled: true, order: 2 },
+    { key: 'author', value: '{{author}}', enabled: true, order: 3 },
+    { key: 'likes', value: '{{likedCount}}', enabled: true, order: 4 },
+    { key: 'saves', value: '{{collectedCount}}', enabled: true, order: 5 },
+    { key: 'comments', value: '{{commentCount}}', enabled: true, order: 6 },
+    { key: 'shares', value: '{{shareCount}}', enabled: true, order: 7 },
+    { key: 'source', value: '{{source}}', enabled: true, order: 8 },
+    { key: 'tags', value: '- 类型/摘录\n- 状态/待加工', enabled: true, order: 9 },
+    { key: '上级概念', value: '', enabled: true, order: 10 },
+  ],
+};
 
-function formatPublishDate(ts) { return T.formatPublishDate(ts); }
-function normalizeCount(v) { return T.normalizeCount(v); }
+const note = {
+  noteId: '6aa000bc000000002b00194b',
+  user: { nickname: '十月的星星', userId: '6992cc78000000002100b023' },
+  time: Date.UTC(2026, 8, 8),
+  ipLocation: '浙江',
+  type: 'normal',
+  interactInfo: { likedCount: '1252', collectedCount: '708', commentCount: '293', shareCount: '51' },
+  tagList: [{ name: '助眠' }, { name: '精油' }],
+};
 
-function buildContext({ title, source, date, videoUrl, note }) {
-  const interact = note?.interactInfo || {};
-  return {
-    date: date || '', title: title || '', source: source || '', videoUrl: videoUrl || '',
-    noteId: note?.noteId || '', author: note?.user?.nickname || '', authorId: note?.user?.userId || '',
-    publishDate: formatPublishDate(note?.time), ipLocation: note?.ipLocation || '',
-    noteType: note?.type || '', likedCount: normalizeCount(interact.likedCount),
-    collectedCount: normalizeCount(interact.collectedCount), commentCount: normalizeCount(interact.commentCount),
-    shareCount: normalizeCount(interact.shareCount),
-    noteTags: (note?.tagList || []).map((t) => (typeof t === 'string' ? t : t?.name || '')).filter(Boolean).join(' '),
-  };
-}
+const ctx = inst.buildPlaceholderContext({
+  title: '示例标题', source: 'https://xhslink.cn/o/xxxx', date: '2026-09-18', videoUrl: '', note,
+});
+const rendered = inst.buildFrontmatter(ctx);
+console.log('\n' + rendered + '\n');
 
-function replacePlaceholders(value, context) {
-  return value.replace(/\{\{(\w+)\}\}/g, (m, key) =>
-    Object.prototype.hasOwnProperty.call(context, key) ? context[key] : m);
-}
+let rpass = 0, rfail = 0;
+const rcheck = (name, cond) => {
+  cond ? rpass++ : rfail++;
+  console.log(`  ${cond ? '✅' : '❌'} ${name}`);
+};
+rcheck('likes 有值', rendered.includes('likes: 1252'));
+rcheck('saves 有值', rendered.includes('saves: 708'));
+rcheck('comments 有值', rendered.includes('comments: 293'));
+rcheck('shares 有值', rendered.includes('shares: 51'));
+rcheck('published 格式化正确', rendered.includes('published: 2026-09-08'));
+rcheck('author 正确', rendered.includes('author: 十月的星星'));
+rcheck('tags 多行缩进正确', rendered.includes('tags:\n  - 类型/摘录\n  - 状态/待加工'));
 
-function buildFrontmatter(context) {
-  const fields = [
-    { key: 'aliases', value: '' },
-    { key: 'published', value: '{{publishDate}}' },
-    { key: 'imported', value: '{{date}}' },
-    { key: 'author', value: '{{author}}' },
-    { key: 'stats', value: '赞{{likedCount}} 藏{{collectedCount}} 评{{commentCount}}' },
-    { key: 'source', value: '{{source}}' },
-    { key: 'tags', value: '- 类型/摘录\n- 状态/待加工' },
-    { key: '上级概念', value: '' },
-  ];
-  const lines = ['---'];
-  for (const f of fields) {
-    const v = replacePlaceholders(f.value, context);
-    if (v.trim() === '') { lines.push(`${f.key}:`); continue; }
-    if (v.includes('\n')) { lines.push(`${f.key}:`); v.split('\n').forEach((l) => lines.push(`  ${l}`)); continue; }
-    lines.push(`${f.key}: ${v}`);
-  }
-  lines.push('---');
-  return lines.join('\n');
-}
+// 数据缺失的边界：不能出现 undefined，也不能伪装成 0
+const edge = Object.create(Plugin.prototype);
+edge.settings = inst.settings;
+const edgeOut = edge.buildFrontmatter(
+  edge.buildPlaceholderContext({
+    title: 't', source: 's', date: '2026-09-18', videoUrl: '',
+    note: { noteId: 'y', user: { nickname: 'n' }, interactInfo: {} },
+  }),
+);
+rcheck('缺失计数不出现 undefined', !edgeOut.includes('undefined'));
+rcheck('缺失计数渲染为空键（不是 0）', /^likes:$/m.test(edgeOut) && /^saves:$/m.test(edgeOut));
 
-console.log('=== 端到端：抓真实笔记并渲染 frontmatter ===');
+console.log(`\n渲染测试: ${rpass} 通过 / ${rfail} 失败`);
+
+// —— 可选：读库内真实配置做一次对照（跨设备无该路径时自动跳过）——
+const VAULT_CFG = 'E:/第二大脑/.obsidian/plugins/xhs-importer-pro/data.json';
 try {
-  const r = await fetch(URL_SHARE, { redirect: 'manual', headers: HEADERS });
-  const html = await r.text();
-  const state = JSON.parse(html.match(/window\.__INITIAL_STATE__=(.*?)<\/script>/s)[1].trim().replace(/undefined/g, 'null'));
-  const note = Object.values(state.note.noteDetailMap).map((e) => e?.note).find(Boolean);
-
-  const ctx = buildContext({
-    title: note.title, source: URL_SHARE,
-    date: new Date().toISOString().slice(0, 10), videoUrl: '', note,
-  });
-
-  console.log('\n渲染结果：\n');
-  console.log(buildFrontmatter(ctx));
-  console.log(`\n# ${note.title}\n`);
-  console.log('图片数:', note.imageList?.length, '| 文件名预览:',
-    T.sanitizeFilenamePreserveEmoji(note.title) + '-0.jpg');
+  if (fs.existsSync(VAULT_CFG)) {
+    const cfg = JSON.parse(fs.readFileSync(VAULT_CFG, 'utf8'));
+    const keys = inst.normalizeFrontmatterFields(cfg.frontmatterFields).map((f) => f.key);
+    console.log('\n库内实际配置字段:', keys.join(', '));
+    const ok = keys.includes('likes') && keys.includes('saves') && keys.includes('comments');
+    console.log(`  ${ok ? '✅' : '⚠️'} 计数已拆为独立字段${ok ? '' : ' —— 仍在使用合并的 stats，建议在插件设置页更新'}`);
+  } else {
+    console.log('\n（未找到库内插件配置，跳过对照）');
+  }
 } catch (e) {
-  console.log('端到端失败:', e.message);
+  console.log('\n（读库内配置失败，跳过:', e.message + '）');
 }
+
+const totalFail = fail + rfail;
+process.exitCode = totalFail > 0 ? 1 : 0;
+console.log(`\n总计: 通过 ${pass + rpass} / 失败 ${totalFail}`);

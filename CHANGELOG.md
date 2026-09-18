@@ -5,6 +5,28 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ---
 
+## [Unreleased] / 未发布
+
+> Accumulating changes. Per the project convention, tags and releases are created in batches — not once per fix.
+> 改动累积中。按项目约定，tag 与 release 攒批发布，不做「一修一版」。
+
+### Changed / 变更
+
+- **Recommended frontmatter config now writes engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares`) instead of one merged `stats` string. A merged string cannot be sorted or aggregated by Bases/Dataview.
+  推荐的 frontmatter 配置改为把互动数据写成**独立的数字字段**（`likes` / `saves` / `comments` / `shares`），不再合并成一串 `stats` 文本 —— 合并文本无法被 Bases / Dataview 排序或聚合。
+
+### Fixed / 修复
+
+- **Missing interaction counts are no longer rendered as `0`.** `normalizeCount()` used to coerce `undefined` / `""` to `"0"`, which — once counts became sortable fields — made notes with unknown data look like notes with zero engagement and would skew averages. Missing values now render as an empty key, matching the convention used by hand-written cards.
+  互动数据缺失时**不再渲染成 `0`**。`normalizeCount()` 原先把 `undefined` / `""` 强转成 `"0"`；在计数变成可排序字段之后，这会让"数据未知"的笔记被当成 0 赞参与排序并拉低均值。现在缺失一律渲染为空键，与手写卡片的写法一致。
+
+### Internal / 内部
+
+- `dev/verify.mjs` now calls the **real plugin methods** for the frontmatter rendering test instead of a hand-copied duplicate of the logic, runs fully offline, and exits non-zero on failure. Coverage grew from 9 to 28 assertions.
+  `dev/verify.mjs` 的 frontmatter 渲染测试改为调用**真实插件方法**（原先手抄了一份逻辑副本，等于在测自己），全程离线可跑，失败时返回非零退出码。断言数 9 → 28。
+
+---
+
 ## [1.0.12]
 
 ### Removed / 移除

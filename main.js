@@ -151,10 +151,13 @@ function formatPublishDate(timestamp) {
   return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
 }
 
-// [本地增强] 互动数：小红书返回的是字符串，空值统一成 "0"
+// [本地增强] 互动数：小红书返回的是字符串。
+// 注意：**数据缺失时返回空串，不要返回 "0"** —— 这些字段（likes/saves/comments/shares）
+// 已解析为独立字段供看板排序/聚合，假 0 会让"数据未知"的笔记被当成 0 赞排到榜底，
+// 并污染均值统计。空值与拆解卡「未填」的写法一致。
 function normalizeCount(value) {
   if (value === undefined || value === null || value === "") {
-    return "0";
+    return "";
   }
 
   return String(value);

@@ -54,13 +54,18 @@ aliases:
 created: {{date}}
 published: {{publishDate}}
 author: {{author}}
-stats: 赞{{likedCount}} 藏{{collectedCount}} 评{{commentCount}}
+likes: {{likedCount}}
+saves: {{collectedCount}}
+comments: {{commentCount}}
+shares: {{shareCount}}
 source: {{source}}
 tags:
   - 类型/摘录
   - 状态/待加工
 ---
 ```
+
+> **互动数据请用独立数字字段**（`likes` / `saves` / `comments` / `shares`），不要塞成一串文本。合并文本无法被 Bases / Dataview 排序或聚合，而「哪篇是异常爆款」是你挖对标笔记时第一个要回答的问题。
 
 ---
 
