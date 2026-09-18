@@ -50,6 +50,7 @@ Example frontmatter setup:
 
 ```yaml
 ---
+type: raw
 aliases:
 created: {{date}}
 published: {{publishDate}}

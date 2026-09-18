@@ -90,17 +90,18 @@ const inst = Object.create(Plugin.prototype);
 // 固定测试配置：证明占位符 → 字段 的映射生效，不依赖库内 data.json
 inst.settings = {
   frontmatterFields: [
-    { key: 'aliases', value: '', enabled: true, order: 0 },
-    { key: 'created', value: '{{date}}', enabled: true, order: 1 },
-    { key: 'published', value: '{{publishDate}}', enabled: true, order: 2 },
-    { key: 'author', value: '{{author}}', enabled: true, order: 3 },
-    { key: 'likes', value: '{{likedCount}}', enabled: true, order: 4 },
-    { key: 'saves', value: '{{collectedCount}}', enabled: true, order: 5 },
-    { key: 'comments', value: '{{commentCount}}', enabled: true, order: 6 },
-    { key: 'shares', value: '{{shareCount}}', enabled: true, order: 7 },
-    { key: 'source', value: '{{source}}', enabled: true, order: 8 },
-    { key: 'tags', value: '- 类型/摘录\n- 状态/待加工', enabled: true, order: 9 },
-    { key: '上级概念', value: '', enabled: true, order: 10 },
+    { key: 'type', value: 'raw', enabled: true, order: 0 },
+    { key: 'aliases', value: '', enabled: true, order: 1 },
+    { key: 'created', value: '{{date}}', enabled: true, order: 2 },
+    { key: 'published', value: '{{publishDate}}', enabled: true, order: 3 },
+    { key: 'author', value: '{{author}}', enabled: true, order: 4 },
+    { key: 'likes', value: '{{likedCount}}', enabled: true, order: 5 },
+    { key: 'saves', value: '{{collectedCount}}', enabled: true, order: 6 },
+    { key: 'comments', value: '{{commentCount}}', enabled: true, order: 7 },
+    { key: 'shares', value: '{{shareCount}}', enabled: true, order: 8 },
+    { key: 'source', value: '{{source}}', enabled: true, order: 9 },
+    { key: 'tags', value: '- 类型/摘录\n- 状态/待加工', enabled: true, order: 10 },
+    { key: '上级概念', value: '', enabled: true, order: 11 },
   ],
 };
 
@@ -125,6 +126,7 @@ const rcheck = (name, cond) => {
   cond ? rpass++ : rfail++;
   console.log(`  ${cond ? '✅' : '❌'} ${name}`);
 };
+rcheck('type: raw 写在首行', rendered.startsWith('---\ntype: raw'));
 rcheck('likes 有值', rendered.includes('likes: 1252'));
 rcheck('saves 有值', rendered.includes('saves: 708'));
 rcheck('comments 有值', rendered.includes('comments: 293'));

@@ -12,6 +12,8 @@ All notable changes to **Xiaohongshu Importer Pro** are documented here.
 
 ### Changed / 变更
 
+- **Recommended frontmatter config now writes `type: raw` as the first field**, so imported notes are visible to the vault's Bases views. This vault uses `type` to filter every board, so a note without `type` is invisible to all of them.
+  推荐的 frontmatter 配置现在把 **`type: raw` 写在首行** —— 这样导入的笔记才能进 Obsidian Bases 看板。本库的所有看板都靠 `type` 过滤，没有 `type` 的文件不进任何看板。
 - **Recommended frontmatter config now writes engagement counts as separate numeric fields** (`likes` / `saves` / `comments` / `shares`) instead of one merged `stats` string. A merged string cannot be sorted or aggregated by Bases/Dataview.
   推荐的 frontmatter 配置改为把互动数据写成**独立的数字字段**（`likes` / `saves` / `comments` / `shares`），不再合并成一串 `stats` 文本 —— 合并文本无法被 Bases / Dataview 排序或聚合。
 
