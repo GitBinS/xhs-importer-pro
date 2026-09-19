@@ -46,7 +46,7 @@ Use these in any frontmatter field value:
 | `{{noteTags}}` | Hashtags, space-separated |
 | `{{noteId}}` | Xiaohongshu note ID |
 
-Example frontmatter setup — this is what the plugin's default configuration produces:
+Example frontmatter setup:
 
 ```yaml
 ---
@@ -66,6 +66,8 @@ tags:
 ---
 ```
 
+> **A fresh install ships only four fields** — `aliases`, `created: {{date}}`, `tags` and `上级概念`. Nothing else is written unless you add it yourself: no `type`, no engagement counts, no author data. The block above is one example configuration, not the default.
+>
 > **The keys shown are Chinese, but the names are entirely yours to change.** Obsidian lets you name a property anything you like — the English equivalents (`created` / `published` / `author` / `source` / `likes` / `saves` / `comments` / `shares`) work exactly the same way. Two keys must stay as they are: `aliases` and `tags`, because they are Obsidian's built-in properties and the alias / tag systems key on those exact names. (`type` is only English by convention here — it is what the sample vault's Bases filters match on.)
 >
 > **Placeholder names must stay ASCII.** They are resolved by `/\{\{(\w+)\}\}/`, and JavaScript's `\w` does not cover CJK characters — a Chinese placeholder would silently stay in the note as literal `{{...}}`. For readability, the settings tab lists every placeholder with a short description instead.
