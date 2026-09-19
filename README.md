@@ -16,7 +16,7 @@ Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown 
 | **Full body text** | Complete note body, with hashtags separated out and cleaned. |
 | **All images downloaded** | Images are saved into your local vault, so they stay readable offline and survive note deletion. |
 | **Engagement metrics** | Like / save / comment / share counts written to frontmatter — useful for filtering for high-performing notes. |
-| **Publish date & author** | Real publish date, author nickname, author ID and profile link. |
+| **Publish date & author** | Real publish date, author nickname, author ID (the internal `userId`) and profile link. |
 | **Configurable folders** | Separate configurable destinations for notes and images. |
 | **Configurable frontmatter** | Add, remove, reorder, enable or disable fields; values support placeholders. |
 | **Emoji-safe filenames** | Filenames keep Chinese characters, emoji and punctuation without dropping or corrupting them. |
@@ -35,13 +35,13 @@ Use these in any frontmatter field value:
 | `{{videoUrl}}` | Video direct URL (video notes only) |
 | `{{publishDate}}` | Note publish date (`YYYY-MM-DD`) |
 | `{{author}}` | Author nickname |
-| `{{authorId}}` | Author user ID |
+| `{{authorId}}` | Author `userId` (internal ID — **not** the Xiaohongshu handle) |
 | `{{authorUrl}}` | Author profile link |
 | `{{likedCount}}` | Like count |
 | `{{collectedCount}}` | Save / collect count |
 | `{{commentCount}}` | Comment count |
 | `{{shareCount}}` | Share count |
-| `{{ipLocation}}` | Author IP location |
+| `{{ipLocation}}` | Author IP location (comes with the note page, not scraped from the profile) |
 | `{{noteType}}` | `normal` or `video` |
 | `{{noteTags}}` | Hashtags, space-separated |
 | `{{noteId}}` | Xiaohongshu note ID |
@@ -124,6 +124,7 @@ Add the repository URL to [BRAT](https://github.com/TfTHacker/obsidian42-brat) t
 ## Scope & limitations
 
 - Only **public single notes** are supported. This plugin does not scrape a creator's full profile, search results, or your own bookmarks/likes.
+- **No author handle / bio / follower count.** Those three are only served by the author-profile endpoint, which rate-limits aggressively (repeated requests get redirected to the login page), so most notes failed to return them during batch imports — **removed in 1.0.12** (together with the `{{authorRedId}}`, `{{authorDesc}}`, `{{authorFans}}` and `{{authorIpLocation}}` placeholders). To see the handle, open the profile via `{{authorUrl}}`.
 - **Comments cannot be imported.** Xiaohongshu serves comment content through a separate endpoint that requires an authenticated session, which this plugin deliberately does not use.
 - Video notes keep a remote URL only; the video file itself is not downloaded.
 - Parsing depends on Xiaohongshu's current page structure. If the site changes its frontend, field extraction may need updating.
