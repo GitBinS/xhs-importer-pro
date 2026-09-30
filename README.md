@@ -1,4 +1,4 @@
-# Xiaohongshu Importer Pro
+# XHS Importer Pro
 
 **English** | [中文](./README.zh-CN.md)
 
@@ -103,7 +103,7 @@ Everything is processed locally on your machine. Imported notes are plain Markdo
 1. Download `main.js`, `manifest.json` and `styles.css` from the latest release.
 2. Create a folder named `xhs-importer-pro` inside `<your-vault>/.obsidian/plugins/`.
 3. Copy the three files into that folder.
-4. Reload Obsidian and enable **Xiaohongshu Importer Pro** in *Settings → Community plugins*.
+4. Reload Obsidian and enable **XHS Importer Pro** in *Settings → Community plugins*.
 
 ### Via BRAT
 

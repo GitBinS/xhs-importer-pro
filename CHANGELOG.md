@@ -1,9 +1,18 @@
 # Changelog / 更新日志
 
-All notable changes to **Xiaohongshu Importer Pro** are documented here.
-本文件记录 **Xiaohongshu Importer Pro** 的所有重要变更。
+All notable changes to **XHS Importer Pro** are documented here.
+本文件记录 **XHS Importer Pro** 的所有重要变更。
 
 ---
+
+## [1.0.14] — 2026-09-30
+
+### Changed / 变更
+
+- **Display name is now `XHS Importer Pro`** (was `xhs-importer-pro`) — the same space-separated, capitalised style used by the author's other plugin, so the name reads naturally and matches better in the community search.
+  显示名改为 **`XHS Importer Pro`**（原 `xhs-importer-pro`）—— 与同作者的另一个插件统一为「空格分隔 + 首字母大写」写法，读起来更自然，社区搜索也更容易命中。
+- ⚠️ **The plugin `id` is unchanged** — still `xhs-importer-pro`. Your settings, the plugin folder name and the `imported-notes.json` dedup index all key on the id, so nothing is lost.
+  ⚠️ **插件 `id` 未变**（仍是 `xhs-importer-pro`）—— 你的配置、插件目录名、去重索引全部以 id 为准，不受影响。
 
 ## [1.0.13] — 2026-09-19
 

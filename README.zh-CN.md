@@ -1,4 +1,4 @@
-# Xiaohongshu Importer Pro（小红书笔记采集 · 增强版）
+# XHS Importer Pro（小红书笔记采集 · 增强版）
 
 [English](./README.md) | **中文**
 
@@ -103,7 +103,7 @@ tags:
 1. 从最新 Release 下载 `main.js`、`manifest.json`、`styles.css`。
 2. 在你的库目录下创建文件夹 `<你的库>/.obsidian/plugins/xhs-importer-pro/`。
 3. 把这三个文件复制进去。
-4. 重新加载 Obsidian，在 *设置 → 第三方插件* 中启用 **Xiaohongshu Importer Pro**。
+4. 重新加载 Obsidian，在 *设置 → 第三方插件* 中启用 **XHS Importer Pro**。
 
 ### 通过 BRAT 安装
 
