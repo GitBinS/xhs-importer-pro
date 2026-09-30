@@ -2,6 +2,8 @@
 
 **English** | [中文](./README.zh-CN.md)
 
+把小红书笔记导入 Obsidian：正文、话题标签、图片与点赞、收藏、评论、转发数据全部存成本地 Markdown，frontmatter 可自由配置，无需登录。
+
 Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown — including the full body text, all images, hashtags, author info, and engagement metrics.
 
 ---
@@ -10,7 +12,7 @@ Import Xiaohongshu (小红书) notes into your Obsidian vault as local Markdown 
 
 | Feature | Description |
 |---|---|
-| **Import from share link** | Paste a Xiaohongshu share text or link to import a note. Supports `xhslink.com` short links and App / web share links. |
+| **Import from share link** | Paste a Xiaohongshu share text or link to import a note. Supports `xhslink.com` / `xhslink.cn` short links and App / web share links. |
 | **Batch import** | Paste many share links at once — all links in the text are detected and imported in order, with a per-run limit of 20 and random throttling between requests. |
 | **Duplicate detection** | Notes are matched by note ID against a persistent index, so re-importing the same note is skipped rather than duplicated. A note counts as duplicate only while it still exists in the vault — delete it and you can import it again. Applies to single-link and batch imports alike. |
 | **Full body text** | Complete note body, with hashtags separated out and cleaned. |
@@ -97,6 +99,12 @@ Everything is processed locally on your machine. Imported notes are plain Markdo
 ---
 
 ## Installation
+
+### From the community plugins directory
+
+1. Open *Settings → Community plugins → Browse*.
+2. Search for **XHS Importer Pro** and select **Install**.
+3. Select **Enable**.
 
 ### Manual install
 

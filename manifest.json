@@ -3,7 +3,7 @@
 	"name": "XHS Importer Pro",
 	"version": "1.0.14",
 	"minAppVersion": "1.4.0",
-	"description": "Import Xiaohongshu notes into your vault with configurable folders, frontmatter fields, local image downloads, and engagement metrics such as likes, saves, and comments.",
+	"description": "把小红书笔记导入 Obsidian：正文、话题标签、图片与点赞、收藏、评论、转发数据全部存成本地 Markdown，frontmatter 可自由配置，无需登录。\nImport Xiaohongshu notes into Obsidian with text, hashtags, images and counts for likes, saves, comments and shares. No login required.",
 	"author": "GitBinS",
 	"authorUrl": "https://github.com/GitBinS",
 	"isDesktopOnly": false
